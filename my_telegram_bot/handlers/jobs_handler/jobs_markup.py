@@ -6,7 +6,7 @@ from aiogram.filters.callback_data import CallbackData
 btnSearch = KeyboardButton(text='Search 🔎')
 btnPost = KeyboardButton(text='Post an ad 📰')
 btnMyPosts = KeyboardButton(text='View my ads 🧾')
-jobsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost]])
+jobsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost], [btnMyPosts]])
 
 btnLocation = KeyboardButton(text='Provide Location', request_location=True)
 locationMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnLocation]])
