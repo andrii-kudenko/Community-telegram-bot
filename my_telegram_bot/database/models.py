@@ -1,9 +1,11 @@
 from typing import List
+import random
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 # from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, ForeignKey, BigInteger, Boolean
+from sqlalchemy import Integer, String, ForeignKey, BigInteger, Boolean, JSON
 
 DATABASE_URL = "postgresql+asyncpg://postgres:1234@localhost/bot1"
 
@@ -15,8 +17,32 @@ class User(Base):
     user_id: Mapped[BigInteger] = mapped_column(BigInteger, unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     city: Mapped[str] = mapped_column(String(25), nullable=True)
-    bio = relationship("Bio", back_populates="user", uselist=False)
-    jobs = relationship("Job", back_populates="user")
+    jobs_search_id: Mapped[int] = mapped_column(Integer)
+    jobs_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
+    jobs_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Relationships
+    bio: Mapped["Bio"] = relationship(back_populates="user", uselist=False)
+    jobs: Mapped["Job"] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Job.user_id')
+    user_applications: Mapped["JobApplication"] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
+
+    def get_number_list(self):
+        return self.jobs_search_id_list
+
+    def set_number_list(self, numbers):
+        self.number_list = numbers
+
+    def add_number_to_jobs_search_id_list(self, number):
+        if self.jobs_search_id_list is None:
+            self.jobs_search_id_list = []
+        self.jobs_search_id_list.append(number)
+
+    def generate_unique_random_jobs_search_id(self, min_value=1, max_value=100):
+        existing_numbers = self.get_number_list()
+        while True:
+            rand_number = random.randint(min_value, max_value)
+            if rand_number not in existing_numbers:
+                return rand_number
 
 class Bio(Base):
     __tablename__ = 'bios'
@@ -53,7 +79,39 @@ class Like(Base):
     liked_bio: Mapped["Bio"] = relationship(back_populates="liked_by", foreign_keys=[liked_bio_id])
 
 
-engine = create_async_engine(DATABASE_URL)
+class Job(Base):
+    __tablename__ = 'jobs'
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement=True)
+    user_id: Mapped[BigInteger] = mapped_column(BigInteger, ForeignKey('users.user_id'), nullable=False, index=True) 
+    title: Mapped[str] = mapped_column(String(30), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    skills: Mapped[str] = mapped_column(String(255), nullable=False)  # Store skills as a comma-separated string
+    # location = mapped_column(String, nullable=False)
+    latitude: Mapped[str] = mapped_column(String(15))
+    longtitude: Mapped[str] = mapped_column(String(15))
+    city: Mapped[str] = mapped_column(String(40))
+    address: Mapped[str] = mapped_column(String(40))
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="jobs", foreign_keys=[user_id])  
+    job_applications: Mapped["JobApplication"] = relationship(back_populates="job", cascade="all, delete-orphan", foreign_keys='JobApplication.job_id')
+    
+    def get_skills(self):
+        return self.skills.split(",")  # Convert comma-separated string back to list
+    
+class JobApplication(Base):
+    __tablename__ = 'jobs_applications'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey('jobs.id'), nullable=False)
+    applicant_user_id: Mapped[BigInteger] = mapped_column(ForeignKey('users.user_id'), nullable=False)
+    
+    # Relationships
+    job: Mapped["Job"] = relationship(back_populates="job_applications", foreign_keys=[job_id])
+    applicant_user: Mapped["User"] = relationship(back_populates="user_applications", foreign_keys=[applicant_user_id])
+
+
+
+engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit = False, autoflush=False, bind=engine, class_=AsyncSession)
 
 async def init_db():

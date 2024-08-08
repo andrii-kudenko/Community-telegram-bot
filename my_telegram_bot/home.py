@@ -4,6 +4,7 @@ from aiogram.filters import Command
 from bot_info import set_back_commands, set_default_commands
 import markups.markups as nav
 from handlers.friendships_handler.friendships_markup import MenuCallback as friendsMenuCallback
+from handlers.jobs_handler.jobs_markup import MenuCallback as jobsMenuCallback
 
 home_router = Router(name=__name__)
 
@@ -24,6 +25,7 @@ async def home(message: Message) -> None:
     await set_default_commands(id=message.from_user.id)
 
 @home_router.callback_query(friendsMenuCallback.filter(F.menu == "home"))
+@home_router.callback_query(jobsMenuCallback.filter(F.menu == "home"))
 async def callback_home(query: CallbackQuery, callback_data: friendsMenuCallback):
     await query.answer("Home")
     text = "Choose category:" + " " * 50 + "&#x200D;" + '\n'

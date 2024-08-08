@@ -213,7 +213,7 @@ async def search_by_message(message: Message, state: FSMContext):
         else:
             await message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
             await message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "go_search"))
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search"))
 async def search_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Searching")
     user_id = query.from_user.id
@@ -274,7 +274,7 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
         else:
              await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
              await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "go_search_beyond"))
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Searching beyond")
     user_id = query.from_user.id

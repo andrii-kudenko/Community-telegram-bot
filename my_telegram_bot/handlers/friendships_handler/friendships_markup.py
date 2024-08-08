@@ -31,11 +31,11 @@ homeChoiceMenu.adjust(2,1)
 bioChangeMenu = InlineKeyboardBuilder() 
 bioChangeMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
 bioChangeMenu.button(text='New Bio 👤', callback_data=MenuCallback(menu="new_bio").pack())
-bioChangeMenu.button(text='Search 🔎', callback_data=MenuCallback(menu="go_search").pack())
+bioChangeMenu.button(text='Search 🔎', callback_data=MenuCallback(menu="friendships_go_search").pack())
 
 askToSearchBeyondMenu = InlineKeyboardBuilder() 
 askToSearchBeyondMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
-askToSearchBeyondMenu.button(text='Search beyond city🔎', callback_data=MenuCallback(menu="go_search_beyond").pack())
+askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=MenuCallback(menu="friendships_go_search_beyond").pack())
 
 showUserMenu = InlineKeyboardBuilder() 
 showUserMenu.button(text='👀', callback_data=MenuCallback(menu="liked_by_someone").pack())

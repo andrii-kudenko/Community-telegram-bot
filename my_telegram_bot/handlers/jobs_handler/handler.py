@@ -1,3 +1,7 @@
+# IDEA: 
+# when having options from the same city, check if coordinates are give, if yes, calculate the distance
+# need to create a separate handler for my posts
+
 from typing import Any, Dict
 import logging
 
@@ -5,16 +9,35 @@ from aiogram import Router, F, html
 from aiogram.utils import markdown
 from aiogram.utils.markdown import bold, italic, text, code, pre
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from . import jobs_markup as nav
+from markups import markups
 from utils import location
 from bot_info import set_back_commands, set_default_commands
+from database import jobs_requests as rq
+from database.models import SessionLocal
+from database.models import Job
+
+# from handlers.friendships_handler.friendships_markup import MenuCallback as friendsMenuCallback
+# from friendships_handler.friendships_markup import MenuCallback
 
 job_router = Router(name=__name__)
+
+class NewJob():
+     def __init__(self, coordinates, user_id, title, description, skills, city, address, latitude = 0, longtitude = 0) -> None:
+          self.coordinates = coordinates
+          self.user_id = user_id
+          self.title = title
+          self.description = description
+          self.skills = skills
+          self.latitude = latitude
+          self.longtitude = longtitude
+          self.city = city
+          self.address = address
 
 class Jobs(StatesGroup):
     choice = State()
@@ -25,7 +48,21 @@ class Job(StatesGroup):
     description = State()
     skills = State()
     location = State()
+    # optional
+    address = State()
 
+    # ---UTILITY FUNCTIONS---
+search_funcitons_map = { # execute appropriate function depending on the city_search value in user
+    True: rq.get_next_job_by_id_with_city,
+    False: rq.get_next_job_by_id_without_city
+}
+# update_funcitons_map = { # execute appropriate function depending on the city_search value in bio
+#     True: rq.update_my_search_id,
+#     False: rq.update_my_beyond_city_search_id
+# }
+
+
+# ---COMMANDS---
 @job_router.message(Command("jobs", prefix=("!/")))
 async def start_jobs(message: Message, state: FSMContext):
     await state.set_state(Jobs.choice)
@@ -67,26 +104,74 @@ async def back_handler(message: Message, state: FSMContext) -> None:
             await state.set_state(Job.skills)
             await message.answer("Send me new skills")
 
+
+# ---SEARCH---
 @job_router.message(Jobs.choice, F.text == "Search 🔎")
-async def search(message: Message, state: FSMContext):
-    # await message.answer("Searching...")
-    job_title = "Software Developer"
-    job_description = "We are looking for a skilled software developer to join our team. The ideal candidate will have experience in developing scalable web applications and a strong understanding of software development principles."
-    job_skills = ["Python", "JavaScript", "SQL", "HTML/CSS", "Git", "Agile methodology"]
-    job_location = "Remote or On-site in San Francisco, CA"
-
-    skills_formatted = "\n".join([f"- {skill}" for skill in job_skills])
-
-    summary = (
-        f"<b>{job_title}</b>\n\n"
-        f"<code>{job_description}</code>\n\n"
-        "Skills required:\n"
-        f"{skills_formatted}\n\n"
-        f"<i>{job_location}</i>"
-    )
-
-    await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=ReplyKeyboardRemove()) 
+async def search_by_message(message: Message, state: FSMContext): 
+    user_id = message.from_user.id
+    # database check for resume
+    await message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Jobs.searching)
+    async with SessionLocal() as session:
+        user = await rq.get_user(session, user_id)
+        job = await rq.get_next_job_by_id_with_city(session, user.jobs_search_id_list, user.city)
+        if job:
+            summary = await post_summary(job)
+            await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+        elif job is None:
+            await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await message.answer("Would you like to search job options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
+        else:
+            await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "go_search"))
+async def search_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Searching")
+    user_id = query.from_user.id
+    # database check for resume
+    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
+    await state.set_state(Jobs.searching)
+    async with SessionLocal() as session:
+        user = await rq.get_user(session, user_id)
+        job = await rq.get_next_job_by_id_with_city(session, user.jobs_search_id_list, user.city)
+        if job: 
+            summary = await post_summary(job)
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+        if job is None:
+            await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
+        else:
+            await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "jobs_go_search_beyond"))
+async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Searching outside")
+    user_id = query.from_user.id
+    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
+    await state.set_state(Jobs.searching)
+    async with SessionLocal() as session:
+        user = await rq.get_user(session, user_id)
+        job = await rq.get_next_job_by_id_without_city(session, user.jobs_search_id_list, user.city)
+        if job:
+            summary = await post_summary(job)
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+        else:
+            await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+
+
+# ---MY POSTS---
+@job_router.message(Jobs.choice, F.text == "View my ads 🧾")
+async def my_job_posts(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    await message.answer("My posts")
+
+
+# ---NEW POST---
 @job_router.message(Jobs.choice, F.text == "Post an ad 📰")
 async def job(message: Message, state: FSMContext):
     await message.answer("Creating your ad...\
@@ -94,9 +179,6 @@ async def job(message: Message, state: FSMContext):
     await state.set_state(Job.title)
     await message.answer("Type the title for your ad:", reply_markup=ReplyKeyboardRemove())
     await set_back_commands(id=message.from_user.id)
-@job_router.message(Jobs.choice)
-async def choice_invalid(message: Message):
-    await message.answer("I don't understand you. Please choose your action or Go /home")
 
 
 # ---POST CREATION---
@@ -116,23 +198,34 @@ async def job_skills(message: Message, state: FSMContext):
     await state.set_state(Job.location)
     await message.answer(f"Ok, now provide the location for your job:", reply_markup=nav.locationMenu)
 @job_router.message(Job.location, F.location)
-@job_router.message(Job.location, F.text)
 async def job_location(message: Message, state: FSMContext):
-    if message.location:
-        user_location = location.get_location(message.location.latitude, message.location.longitude)
-        print(user_location)
-        data = await state.update_data(location=user_location[1])
-    else:
-        data = await state.update_data(location=message.text)     
+    user_location = location.get_location(message.location.latitude, message.location.longitude)
+    print(user_location)
+    data = await state.update_data(location=user_location[1])
+    new_job = NewJob(True, message.from_user.id, data["title"], data["description"], data["skills"], data["location"], data["location"], message.location.latitude, message.location.longitude)
     await state.clear()
-
     await show_summary(message=message, data=data)
-
-    # Database call to add a post to user
+    # make database request to add post
 
     await state.set_state(Jobs.choice)
     await message.answer("Good, your ad is successfully posted!", reply_markup=nav.jobsReplyChoiceMenu)
     await set_default_commands(id=message.from_user.id)
+@job_router.message(Job.location, F.text)
+async def job_city(message: Message, state: FSMContext):
+    await state.update_data(location=message.text)
+    await state.set_state(Job.address)
+    await message.answer("Add an address (street) for your post")
+@job_router.message(Job.address, F.text)
+async def job_address(message: Message, state: FSMContext):
+    data = await state.update_data(address=message.text)
+    new_job = NewJob(False, message.from_user.id, data["title"], data["description"], data["skills"], data["location"], data["address"])
+    await state.clear()
+    await show_summary(message=message, data=data)
+    # make database request to add post
+    
+    await state.set_state(Jobs.choice)
+    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.jobsReplyChoiceMenu)
+
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
     title = data["title"]
     description = data["description"]
@@ -154,18 +247,74 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
             )
     await message.answer(text=summary, reply_markup=ReplyKeyboardRemove())
 
-# @job_router.message()
-# async def invalid_input(message: Message):
-#      await message.answer("Please, provide a valid answer jobs")
 
-async def post_summary(): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
-    skills_formatted = "\n".join([f"- {skill}" for skill in job_skills])
+# ---NEXT---
+@job_router.message(Jobs.searching, F.text == "Next ➡️")
+async def next_job(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    # await state.set_state(Jobs.searching)
+    async with SessionLocal() as session:
+        user = await rq.get_user(session, user_id)
+        # job = await rq.get_next_job_by_id(session, user.jobs_search_id_list)
+        job = await search_funcitons_map[user.jobs_city_search](session, user.jobs_search_id_list, user.city)
+        if job:
+            summary = await post_summary(job)
+            await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+        elif job is None:
+            if user.jobs_city_search:
+                await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+                await message.answer("Would you like to search job options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
+            else:
+                await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+                await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+        else:
+            await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
+
+# ---JOB APPLICATION---
+@job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "apply"))
+async def apply_for_job(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    async with SessionLocal() as session:
+         user = await rq.get_user(session, user_id)
+         job_application = await rq.apply_for_job(session, user.jobs_search_id, user.user_id)
+    await query.answer('Applied')
+    await query.message.edit_reply_markup(reply_markup=nav.appliedMenu.as_markup())
+@job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "applied"))
+async def applied(query: CallbackQuery, state: FSMContext):
+    await query.answer("Already Applied")
+
+
+# ---HELPER FUNCTIONS---
+async def post_summary(job: Job): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
+    job_skills: str = job.skills
+    skills_list = job_skills.split(',')
+    skills_formatted = "\n".join([f"- {skill}" for skill in skills_list])
     summary = (
-        f"<b>{job_title}</b>\n\n"
-        f"<code>{job_description}</code>\n\n"
+        f"<b>{job.title}</b>\n\n"
+        f"<code>{job.description}</code>\n\n"
         "Skills required:\n"
         f"{skills_formatted}\n\n"
-        f"<i>{job_location}</i>"
+        f"<i>{(job.city).capitalize()}, {job.address} 📍</i>"
     )
     return summary
+
+
+    # await message.answer("Searching...")
+    # job_title = "Software Developer"
+    # job_description = "We are looking for a skilled software developer to join our team. The ideal candidate will have experience in developing scalable web applications and a strong understanding of software development principles."
+    # job_skills = ["Python", "JavaScript", "SQL", "HTML/CSS", "Git", "Agile methodology"]
+    # job_location = "Remote or On-site in San Francisco, CA"
+
+    # skills_formatted = "\n".join([f"- {skill}" for skill in job_skills])
+
+    # summary = (
+    #     f"<b>{job_title}</b>\n\n"
+    #     f"<code>{job_description}</code>\n\n"
+    #     "Skills required:\n"
+    #     f"{skills_formatted}\n\n"
+    #     f"<i>{job_location}</i>"
+    # )
+
