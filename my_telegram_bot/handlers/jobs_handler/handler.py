@@ -62,7 +62,7 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 # }
 
 
-# ---COMMANDS---
+# --- COMMANDS ---
 @job_router.message(Command("jobs", prefix=("!/")))
 async def start_jobs(message: Message, state: FSMContext):
     await state.set_state(Jobs.choice)
@@ -105,7 +105,7 @@ async def back_handler(message: Message, state: FSMContext) -> None:
             await message.answer("Send me new skills")
 
 
-# ---SEARCH---
+# --- SEARCH ---
 @job_router.message(Jobs.choice, F.text == "Search 🔎")
 async def search_by_message(message: Message, state: FSMContext): 
     user_id = message.from_user.id
@@ -167,7 +167,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
 
-# ---MY POSTS---
+# --- MY POSTS ---
 @job_router.message(Jobs.choice, F.text == "View my ads 🧾")
 async def my_job_posts(message: Message, state: FSMContext):
     # make a database request
@@ -189,7 +189,7 @@ async def job(message: Message, state: FSMContext):
     await set_back_commands(id=message.from_user.id)
 
 
-# ---POST CREATION---
+# --- POST CREATION ---
 @job_router.message(Job.title, F.text)
 async def job_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
@@ -264,7 +264,7 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     await message.answer(text=summary, reply_markup=ReplyKeyboardRemove())
 
 
-# ---NEXT---
+# --- NEXT ---
 @job_router.message(Jobs.searching, F.text == "Next ➡️")
 async def next_job(message: Message, state: FSMContext):
     user_id = message.from_user.id
@@ -289,7 +289,7 @@ async def next_job(message: Message, state: FSMContext):
             await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
 
-# ---JOB APPLICATION---
+# --- JOB APPLICATION ---
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "apply"))
 async def apply_for_job(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
@@ -303,7 +303,7 @@ async def applied(query: CallbackQuery, state: FSMContext):
     await query.answer("Already Applied")
 
 
-# ---HELPER FUNCTIONS---
+# --- HELPER FUNCTIONS ---
 async def post_summary(job: Job): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
     job_skills: str = job.skills
     skills_list: list = job_skills.split(',')

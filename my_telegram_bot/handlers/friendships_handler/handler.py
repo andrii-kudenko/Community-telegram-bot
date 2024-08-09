@@ -83,12 +83,12 @@ async def start_friends_query(query: CallbackQuery, state: FSMContext):
     await state.set_state(Friends.choice)
     text = markdown.text(
         markdown.hbold('Friends Finder\n'),
-        markdown.text('Choose action:'),
+        markdown.text('Choose action IN START FRIENDS:'),
     )
     await query.message.answer(text, reply_markup=nav.friendsReplyChoiceMenu)
 
 
-# ---COMMANDS---
+# --- COMMANDS ---
 @friendship_router.message(Command("friends", prefix=("!/")))
 async def start_friends(message: Message, state: FSMContext):
     await state.set_state(Friends.choice)
@@ -154,7 +154,7 @@ async def back_handler(message: Message, state: FSMContext) -> None:
             await message.answer("Send me another photo")
 
 
-# ---SEARCH---
+# --- SEARCH ---
 @friendship_router.message(Friends.choice, F.text == "Search 🔎")
 @friendship_router.message(Friends.bio_overview, F.text == "Search 🔎")
 async def search_by_message(message: Message, state: FSMContext):
@@ -324,7 +324,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
              await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
 
 
-# ---MY BIO---
+# --- MY BIO ---
 @friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "my_bio"))
 async def my_bio_by_query(query: CallbackQuery, state: FSMContext):
     await state.set_state(Friends.bio_overview)
@@ -388,7 +388,7 @@ async def my_bio_by_message(message: Message, state: FSMContext):
             return
         
 
-# ---NEW BIO---
+# --- NEW BIO ---
 @friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "new_bio"))
 async def new_bio_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Creating New Bio")
@@ -429,13 +429,13 @@ async def profile_photo1(message: Message, state: FSMContext):
     await state.set_state(Bio.photo2)
     await message.answer("Nice, you have uploaded one photo. Send another one or just continue with this one", reply_markup=nav.photosUploadingReplyMenu1)
 @friendship_router.message(Bio.photo2, F.photo)
-async def profile_photo1(message: Message, state: FSMContext):
+async def profile_photo2(message: Message, state: FSMContext):
     file_id = message.photo[-1].file_id
     new_photo = await state.update_data(photo2 = file_id)
     await state.set_state(Bio.photo3)
     await message.answer("Good, now you have 2 photos. Want to add one more?", reply_markup=nav.photosUploadingReplyMenu2)
 @friendship_router.message(Bio.photo3, F.photo)
-async def profile_photo1(message: Message, state: FSMContext):
+async def profile_photo3(message: Message, state: FSMContext):
     file_id = message.photo[-1].file_id
     new_photo = await state.update_data(photo3 = file_id)
     await state.set_state(Bio.location)
