@@ -56,7 +56,7 @@ class SaleItem(StatesGroup):
 @sales_router.message(Command("sales", prefix=("!/")))
 async def start_sales(message: Message, state: FSMContext):
     await state.set_state(Sales.choice)
-    await message.answer("Hi there! Choose the action:", reply_markup=nav.salesChoiceMenu)
+    await message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu)
 
 # sales_filter = SaleItem.title | SaleItem.description | SaleItem.price | SaleItem.location
 @sales_router.message(SaleItem.title, Command("cancel", prefix=("!/")))
@@ -104,36 +104,42 @@ async def search_by_message(message: Message, state: FSMContext):
     user_id = message.from_user.id
     # database call
 
-    # await message.answer("Searching...", reply_markup=nav.nextMenu)
-    # await state.set_state(Sales.searching)
-    # async with SessionLocal() as session:
-    #      user = await rq.get_user(session, user_id)
-    #      item = await rq.get_next_item_by_id_with_city(session, user.sales_search_id_list, user.city)
-    #      if item:
-    #           summary = await post_summary(job)
-    #           await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup())
+    await message.answer("Searching...", reply_markup=nav.nextMenu)
+    await state.set_state(Sales.searching)
+    async with SessionLocal() as session:
+        user = await rq.get_user(session, user_id)
+        item, photos = await rq.get_next_item_by_id_with_city(session, user.sales_search_id_list, user.city)
+        if item:
+            summary = await item_summary(item, photos)
+            await message.answer_media_group(media=summary)
+            # updated = await rq.add_id_to_user_sales_jobs_search_id_list()
+        elif item is None:
+            await message.answer("No more sales options", reply_markup=ReplyKeyboardRemove())
+            await message.answer("Would you like to search for sales options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
+        else:
+            await message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
+            await message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
 
-
-@sales_router.message(Sales.searching)
-async def obtain_photo(message: Message, state: FSMContext):
-    print(type(message.photo))
-    print(len(message.photo))
-    file_id = message.photo[-1].file_id
-    title_1 = "First Photo Title"
-    description_1 = "This is the description of the first photo."
-    caption_1 = f"{title_1}\n{description_1}"
+# @sales_router.message(Sales.searching)
+# async def obtain_photo(message: Message, state: FSMContext):
+#     print(type(message.photo))
+#     print(len(message.photo))
+#     file_id = message.photo[-1].file_id
+#     title_1 = "First Photo Title"
+#     description_1 = "This is the description of the first photo."
+#     caption_1 = f"{title_1}\n{description_1}"
     
-    title_2 = "Second Photo Title"
-    description_2 = "This is the description of the second photo."
-    caption_2 = f"*{title_2}*\n{description_2}"
-    me = FSInputFile("me_hi.jpg")
-    media = [
-        InputMediaPhoto(media=file_id, caption=caption_1),
-        InputMediaPhoto(media=me)
-    ]
-    print(type(file_id))
-    print(len(file_id))
-    await message.answer_media_group(media=media)
+#     title_2 = "Second Photo Title"
+#     description_2 = "This is the description of the second photo."
+#     caption_2 = f"*{title_2}*\n{description_2}"
+#     me = FSInputFile("me_hi.jpg")
+#     media = [
+#         InputMediaPhoto(media=file_id, caption=caption_1),
+#         InputMediaPhoto(media=me)
+#     ]
+#     print(type(file_id))
+#     print(len(file_id))
+#     await message.answer_media_group(media=media)
 
 
 # --- NEW ITEM ---
@@ -185,7 +191,7 @@ async def ad_photo3(message: Message, state: FSMContext):
 @sales_router.message(SaleItem.photo3, F.text == "Continue with 2/3 photos")
 async def confirm_photos(message: Message, state: FSMContext):
     await state.set_state(SaleItem.price)
-    await message.answer(f"Now, provide price for the item:")
+    await message.answer(f"Now, provide price for the item:", reply_markup=ReplyKeyboardRemove())
 @sales_router.message(SaleItem.price, F.text)
 async def ad_price(message: Message, state: FSMContext):
     await state.update_data(price=message.text)
@@ -200,16 +206,25 @@ async def ad_location(message: Message, state: FSMContext):
         user_location = location.get_location(message.location.latitude, message.location.longitude)
         print(user_location)
         data = await state.update_data(location=user_location[1])
+        new_item = NewSaleItem(user_id, username, data["title"], data["description"], data["price"], data["location"])
     else:
-         data = await state.update_data(location=message.text)
+        data = await state.update_data(location=message.text)
+        new_item = NewSaleItem(user_id, username, data["title"], data["description"], data["price"], data["location"])
     await state.clear()
 
     await show_summary(message=message, data=data)
+    # database call to add
+    async with SessionLocal() as session:
+        photos = []
+        photos.append(data["photo1"])
+        photos.append(data.get("photo2")) if data.get("photo2") else None
+        photos.append(data.get("photo3")) if data.get("photo3") else None
+        new_sale_item = await rq.add_item_to_user_by_id(session, new_item, photos)
+        print("Sale item created successfully")
 
     await state.set_state(Sales.choice)
-    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.salesChoiceMenu)
+    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.salesReplyChoiceMenu)
     await set_default_commands(id=message.from_user.id)
-
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
     title = data["title"]
     description = data["description"]
@@ -227,7 +242,7 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     # )
     summary = markdown.text(
                 markdown.hbold(f'{title}'),
-                markdown.hunderline(f'{price} - '),
+                markdown.hunderline(f'| {price}\n'),
                 markdown.hitalic(f'{description}'),
                 markdown.hblockquote(f'{location}')
             )
@@ -238,6 +253,55 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     await message.answer("New Sale Item", reply_markup=ReplyKeyboardRemove())
     await message.answer_media_group(media=media)
 
-# @sales_router.message()
-# async def invalid_input(message: Message):
-#      await message.answer("Please, provide a valid answer sales")
+
+# --- NEXT ---
+# @sales_router.message(SaleItem.searching, F.text == "Next ➡️")
+# async def next_job(message: Message, state: FSMContext):
+#     user_id = message.from_user.id
+#     # await state.set_state(Jobs.searching)
+#     async with SessionLocal() as session:
+#         user = await rq.get_user(session, user_id)
+#         # job = await rq.get_next_job_by_id(session, user.jobs_search_id_list)
+#         job = await search_funcitons_map[user.jobs_city_search](session, user.jobs_search_id_list, user.city)
+#         if job:
+#             summary = await post_summary(job)
+#             await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+#             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+#         elif job is None:
+#             if user.jobs_city_search:
+#                 await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+#                 await message.answer("Would you like to search job options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
+#             else:
+#                 await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+#                 await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+#         else:
+#             await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+#             await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+
+
+# --- HELPER FUNCTIONS ---
+async def item_summary(item: SaleItem, photos): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
+    summary = markdown.text(
+                markdown.hbold(f'{item.title}'),
+                markdown.hunderline(f'| {item.price}\n'),
+                markdown.hitalic(f'{item.description}'),
+                markdown.hbold(f'Vendor -> '),
+                markdown.text(f'{item.username}'),
+                markdown.hblockquote(f'{item.location}'),
+            )
+    media = []
+    for photo in photos:
+        media.append(InputMediaPhoto(media=photo.photo_id))
+    media[-1].caption = summary
+    return media
+    # job_skills: str = job.skills
+    # skills_list: list = job_skills.split(',')
+    # skills_formatted = "\n".join([f"- {skill.strip().capitalize()}" for skill in skills_list])
+    # summary = (
+    #     f"<b>{job.title}</b>\n\n"
+    #     f"<code>{job.description}</code>\n\n"
+    #     "Skills required:\n"
+    #     f"{skills_formatted}\n\n"
+    #     f"<i>📍 {(job.city).capitalize()}, {job.address}</i>"
+    # )
+    # return summary

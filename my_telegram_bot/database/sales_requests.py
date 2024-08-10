@@ -24,7 +24,7 @@ async def add_username_to_user_by_id(db: AsyncSession, user_id: BigInteger, new_
 async def add_photos_to_item(db: AsyncSession, item_id: int, photos: list):
     print("IM IN ADDING PHOTOS")
     for photo in photos:
-        new_photo = SaleItemPhoto(bio_id=item_id, photo_id=photo)
+        new_photo = SaleItemPhoto(sale_item_id=item_id, photo_id=photo)
         db.add(new_photo)
     await db.commit()
 async def remove_existing_photos(db: AsyncSession, existing_item: SaleItem):
@@ -39,9 +39,11 @@ async def remove_existing_photos(db: AsyncSession, existing_item: SaleItem):
 async def add_item_to_user_by_id(db: AsyncSession, item, photos):
     db_item = SaleItem(
             user_id=item.user_id,
+            username = item.username,
             title = item.title,
             description = item.description,
-            price = item.price
+            price = item.price,
+            city = item.city
         )
     db.add(db_item)
     await db.commit()

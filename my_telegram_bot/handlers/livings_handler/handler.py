@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from . import markup as nav
+from . import livings_markup as nav
 from utils import location
 from bot_info import set_back_commands, set_default_commands
 

@@ -122,7 +122,7 @@ class SaleItem(Base):
     price: Mapped[str] = mapped_column(String(10), nullable=True)
     city: Mapped[str] = mapped_column(String(50))
     username: Mapped[str] = mapped_column(String(50), nullable=True)
-    user: Mapped["User"] = relationship(back_populates="sale_items", cascade="all, delete-orphan")
+    user: Mapped["User"] = relationship(back_populates="sale_items")
     photos: Mapped[List["SaleItemPhoto"]] = relationship(back_populates="sale_item", cascade="all, delete-orphan")
 
 class SaleItemPhoto(Base):

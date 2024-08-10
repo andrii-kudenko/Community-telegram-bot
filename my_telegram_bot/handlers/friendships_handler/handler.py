@@ -406,7 +406,7 @@ async def new_bio_by_message(message: Message, state: FSMContext):
     await set_back_commands(id=message.from_user.id)
 
 
-# ---BIO CREATION---
+# --- BIO CREATION ---
 @friendship_router.message(Bio.name, F.text)
 async def profile_name(message: Message, state: FSMContext):
     await state.update_data(name=message.text)
@@ -502,7 +502,7 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     await message.answer_media_group(media=media)
 
 
-# ---LIKE/DISLIKE---
+# --- LIKE/DISLIKE ---
 @friendship_router.message(Friends.searching, F.text == "👍")
 async def searching_like(message: Message, state: FSMContext):
     user_id = message.from_user.id
@@ -625,7 +625,7 @@ async def searching_dislike(message: Message, state: FSMContext):
 #         ), link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
-# ---ERROR HANDLER---
+# --- ERROR HANDLER ---
 @friendship_router.message(Friends.choice)
 async def choice_invalid(message: Message):
     await message.answer("I don't understand you. Please choose your action or Go /home")
@@ -635,7 +635,7 @@ async def friends_invalid(message: Message):
     await message.answer("I don't understand you. Please choose your action or Go /home")
 
 
-# ---HELPER FUNCTIONS---
+# --- HELPER FUNCTIONS ---
 async def profile_summary(bio, photos):
     summary = markdown.text(
             markdown.hbold(f'{bio.profile_name}'),
