@@ -66,7 +66,7 @@ async def add_id_to_user_jobs_search_id_list(db: AsyncSession, user_id, job_id):
     stmt = select(User).filter(User.user_id == user_id)
     result = await db.execute(stmt)
     user: User = result.scalars().first()
-    search_ids = user.get_number_list()
+    search_ids = user.get_jobs_search_id_list()
     search_ids.append(job_id)
     stmt = update(User).filter(User.user_id == user_id).values(jobs_search_id_list = search_ids).values(jobs_search_id = job_id)
     res = await db.execute(stmt)
@@ -85,7 +85,7 @@ async def update_user_jobs_search_id_list(db: AsyncSession, user_id):
     stmt = select(User).filter(User.user_id == user_id)
     result = await db.execute(stmt)
     user = result.scalars().first()
-    user.set_number_list(numbers)
+    user.set_jobs_search_id_list(numbers)
     await db.commit()
     await db.refresh(user)
     return user

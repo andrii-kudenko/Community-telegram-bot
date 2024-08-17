@@ -21,6 +21,10 @@ class User(Base):
     jobs_search_id: Mapped[int] = mapped_column()
     jobs_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
     jobs_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    items_search_id: Mapped[int] = mapped_column()
+    items_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
+    items_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships
     bio: Mapped["Bio"] = relationship(back_populates="user", uselist=False)
@@ -28,16 +32,19 @@ class User(Base):
     user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
     sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='SaleItem.user_id')
 
-    def get_number_list(self):
+    def get_jobs_search_id_list(self):
         return self.jobs_search_id_list
 
-    def set_number_list(self, numbers):
+    def set_jobs_search_id_list(self, numbers):
         self.number_list = numbers
 
     def add_number_to_jobs_search_id_list(self, number):
         if self.jobs_search_id_list is None:
             self.jobs_search_id_list = []
         self.jobs_search_id_list.append(number)
+
+    def get_items_search_id_list(self):
+        return self.items_search_id_list
 
     def generate_unique_random_jobs_search_id(self, min_value=1, max_value=100):
         existing_numbers = self.get_number_list()
