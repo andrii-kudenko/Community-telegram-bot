@@ -18,40 +18,52 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     username: Mapped[str] = mapped_column(String(50), nullable=True)
     city: Mapped[str] = mapped_column(String(25), nullable=True)
-    jobs_search_id: Mapped[int] = mapped_column()
+
+    jobs_search_id: Mapped[int] = mapped_column(default=0)
     jobs_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
     jobs_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
     
-    items_search_id: Mapped[int] = mapped_column()
+    items_search_id: Mapped[int] = mapped_column(default=0)
     items_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
     items_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    livings_search_id: Mapped[int] = mapped_column(default=0)
+    livings_search_id_list: Mapped[list] = mapped_column(JSON, default=lambda: [])
+    livings_city_search: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships
     bio: Mapped["Bio"] = relationship(back_populates="user", uselist=False)
     jobs: Mapped[List["Job"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Job.user_id')
     user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
     sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='SaleItem.user_id')
+    livings: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Living.user_id')
 
     def get_jobs_search_id_list(self):
         return self.jobs_search_id_list
+    def get_items_search_id_list(self):
+        return self.items_search_id_list
+    def get_livings_search_id_list(self):
+        return self.livings_search_id_list
 
     def set_jobs_search_id_list(self, numbers):
         self.number_list = numbers
 
-    def add_number_to_jobs_search_id_list(self, number):
-        if self.jobs_search_id_list is None:
-            self.jobs_search_id_list = []
-        self.jobs_search_id_list.append(number)
+    # TRY TO ADD NEW ID THROUGH A METHOD !!!
+    
+    # def add_number_to_jobs_search_id_list(self, number):
+    #     if self.jobs_search_id_list is None:
+    #         self.jobs_search_id_list = []
+    #     self.jobs_search_id_list.append(number)
 
     def get_items_search_id_list(self):
         return self.items_search_id_list
 
-    def generate_unique_random_jobs_search_id(self, min_value=1, max_value=100):
-        existing_numbers = self.get_number_list()
-        while True:
-            rand_number = random.randint(min_value, max_value)
-            if rand_number not in existing_numbers:
-                return rand_number
+    # def generate_unique_random_jobs_search_id(self, min_value=1, max_value=100):
+    #     existing_numbers = self.get_jobs_search_id_list()
+    #     while True:
+    #         rand_number = random.randint(min_value, max_value)
+    #         if rand_number not in existing_numbers:
+    #             return rand_number
 
 
 class Bio(Base):
@@ -128,7 +140,7 @@ class SaleItem(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     price: Mapped[str] = mapped_column(String(10), nullable=True)
     city: Mapped[str] = mapped_column(String(50))
-    username: Mapped[str] = mapped_column(String(50), nullable=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False)
     user: Mapped["User"] = relationship(back_populates="sale_items")
     photos: Mapped[List["SaleItemPhoto"]] = relationship(back_populates="sale_item", cascade="all, delete-orphan")
 
@@ -138,6 +150,27 @@ class SaleItemPhoto(Base):
     sale_item_id: Mapped[int] = mapped_column(ForeignKey('sale_items.id'), nullable=False)
     photo_id: Mapped[str] = mapped_column(String(100), nullable=False)
     sale_item: Mapped["SaleItem"] = relationship(back_populates="photos", foreign_keys=[sale_item_id])
+
+
+class Living(Base):
+    __tablename__ = 'livings'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[BigInteger] = mapped_column(ForeignKey('users.user_id'), nullable=False, index=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    price: Mapped[str] = mapped_column(String(10), nullable=True)
+    city: Mapped[str] = mapped_column(String(50))
+    address: Mapped[str] = mapped_column(String(50), nullable=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False)
+    user: Mapped["User"] = relationship(back_populates="livings")
+    photos: Mapped[List["LivingPhoto"]] = relationship(back_populates="living", cascade="all, delete-orphan")
+    
+
+class LivingPhoto(Base):
+    __tablename__ = 'livings_photos'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    living_id: Mapped[int] = mapped_column(ForeignKey('livings.id'), nullable=False)
+    photo_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    living: Mapped["Living"] = relationship(back_populates="photos", foreign_keys=[living_id])
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit = False, autoflush=False, bind=engine, class_=AsyncSession)

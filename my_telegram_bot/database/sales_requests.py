@@ -21,6 +21,7 @@ async def add_username_to_user_by_id(db: AsyncSession, user_id: BigInteger, new_
     await db.commit()
     return result    
 
+
 # --- HANDLE PHOTOS ---
 async def add_photos_to_item(db: AsyncSession, item_id: int, photos: list):
     print("IM IN ADDING PHOTOS")
@@ -55,6 +56,7 @@ async def add_item_to_user_by_id(db: AsyncSession, item, photos):
     #     db.add(new_photo)
     # await db.commit()
     return db_item
+
 
 # --- USER FEATURES ---    
 async def add_id_to_user_items_search_id_list(db: AsyncSession, user_id, item_id):

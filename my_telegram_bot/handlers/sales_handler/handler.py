@@ -20,13 +20,13 @@ from database.models import SaleItem as Item
 sales_router = Router(name=__name__)
 
 class NewSaleItem():
-     def __init__(self, user_id, username, title, description, price, city) -> None:
-          self.user_id = user_id
-          self.username = username
-          self.title = title
-          self.description = description
-          self.price = price
-          self.city = city
+    def __init__(self, user_id, username, title, description, price, city) -> None:
+        self.user_id = user_id
+        self.username = username
+        self.title = title
+        self.description = description
+        self.price = price
+        self.city = city
 
 class Sales(StatesGroup):
     choice = State()
@@ -41,12 +41,12 @@ class SaleItem(StatesGroup):
     price = State()
     location = State()
 
+
 # ---UTILITY FUNCTIONS---
 search_funcitons_map = { # execute appropriate function depending on the city_search value in bio
     True: rq.get_next_item_with_city,
     False: rq.get_next_item_without_city
 }
-
 
 
 # --- COMMANDS ---
@@ -259,8 +259,8 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     #     text(f"{html.blockquote(location)}"),
     # )
     summary = markdown.text(
-                markdown.hbold(f'{title}'),
-                markdown.hunderline(f'| {price}\n'),
+                markdown.hbold(f'{title} |'),
+                markdown.hunderline(f'{price}\n'),
                 markdown.hitalic(f'{description}'),
                 markdown.hblockquote(f'{location}')
             )
@@ -290,7 +290,7 @@ async def next_job(message: Message, state: FSMContext):
                 await message.answer("No more item posts", reply_markup=ReplyKeyboardRemove())
                 await message.answer("Would you like to search for sales options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
             else:
-                await message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+                await message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
                 await message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
         else:
             await message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
@@ -305,7 +305,7 @@ async def item_summary(item: SaleItem, photos): # use ParseMode.HTML (parse_mode
                 markdown.hitalic(f'{item.description}'),
                 markdown.hbold(f'\nVendor ->'),
                 markdown.hlink(f'@{item.username}', f'https://t.me/{item.username}'),
-                markdown.hblockquote(f'{item.city}'),
+                markdown.hblockquote(f'📍 {item.city}'),
             )
     media = []
     for photo in photos:

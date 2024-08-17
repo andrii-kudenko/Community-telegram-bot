@@ -247,13 +247,13 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     description = data["description"]
     skills = data["skills"]
     location = data["location"]
-    summary = text(
-        text(f"{html.underline('Job overview:\n')}"),
-        text(f"{html.bold('Title:')} {title}\n"),
-        text(f"{html.bold('Description:')} {html.italic(description)}\n"),
-        text(f"{html.bold('Skills (required):')} {html.code(skills)}"),
-        text(f"{html.blockquote(location)}"),
-    )
+    # summary = text(
+    #     text(f"{html.underline('Job overview:\n')}"),
+    #     text(f"{html.bold('Title:')} {title}\n"),
+    #     text(f"{html.bold('Description:')} {html.italic(description)}\n"),
+    #     text(f"{html.bold('Skills (required):')} {html.code(skills)}"),
+    #     text(f"{html.blockquote(location)}"),
+    # )
     summary = markdown.text(
                 markdown.hbold(f'{title}\n'),
                 markdown.hcode(f'{description}\n'),
