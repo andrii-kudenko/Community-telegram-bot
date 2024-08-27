@@ -98,6 +98,10 @@ async def back_handler(message: Message, state: FSMContext) -> None:
 # --- SEARCH ---
 @sales_router.message(Sales.choice, F.text == "Search 🔎")
 async def search_by_message(message: Message, state: FSMContext):
+    username = message.from_user.username
+    if username is None:
+        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
+        return
     user_id = message.from_user.id
     # database call
     async with SessionLocal() as session:
@@ -163,6 +167,10 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 # --- NEW ITEM ---
 @sales_router.message(Sales.choice, F.text == "Post an ad 📦")
 async def new_ad_by_message(message: Message, state: FSMContext):
+    username = message.from_user.username
+    if username is None:
+        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
+        return
     await message.answer("Creating your ad...\
                          \nMind that you can always \nGo /back or /cancel the process")                   
     await state.set_state(SaleItem.title)

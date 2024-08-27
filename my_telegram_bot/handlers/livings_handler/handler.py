@@ -133,6 +133,10 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 # --- NEW LIVING ---
 @living_router.message(Livings.choice, F.text == "Post an ad 📰")
 async def living(message: Message, state: FSMContext):
+    username = message.from_user.username
+    if username is None:
+        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
+        return
     await message.answer("Creating your ad...\
                          \nMind that you can always \nGo /back or /cancel the process")
     await state.set_state(Living.description)
@@ -153,8 +157,8 @@ async def living(message: Message, state: FSMContext):
 @living_router.message(Living.description, F.text)
 async def living_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await state.set_state(Living.price)
-    await message.answer(f"Ok, now provide price for your ad:")
+    await state.set_state(Living.photo1)
+    await message.answer(f"Ok, now you can upload up to 6 photos for your ad:")
 @living_router.message(Living.photo1, F.photo)
 async def ad_photo1(message: Message, state: FSMContext):
     file_id = message.photo[-1].file_id
@@ -194,9 +198,9 @@ async def ad_photo3(message: Message, state: FSMContext):
     await confirm_photos(message, state)
 @living_router.message(Living.photo2, F.text == "Continue with 1/6 photos")
 @living_router.message(Living.photo3, F.text == "Continue with 2/6 photos")
-@living_router.message(Living.photo3, F.text == "Continue with 3/6 photos")
-@living_router.message(Living.photo3, F.text == "Continue with 4/6 photos")
-@living_router.message(Living.photo3, F.text == "Continue with 5/6 photos")
+@living_router.message(Living.photo4, F.text == "Continue with 3/6 photos")
+@living_router.message(Living.photo5, F.text == "Continue with 4/6 photos")
+@living_router.message(Living.photo6, F.text == "Continue with 5/6 photos")
 async def confirm_photos(message: Message, state: FSMContext):
     await state.set_state(Living.price)
     await message.answer(f"Ok, now provide price for your ad:", reply_markup=ReplyKeyboardRemove())
@@ -224,7 +228,7 @@ async def living_location(message: Message, state: FSMContext):
         photos.append(data.get("photo4")) if data.get("photo4") else None
         photos.append(data.get("photo5")) if data.get("photo5") else None
         photos.append(data.get("photo6")) if data.get("photo6") else None
-        new_living_post = await rq.add_living_post_to_user(session, new_living, photos)
+        new_living_post = await rq.add_living_to_user_by_id(session, new_living, photos)
         print("Living post added successfully", new_living_post)
 
     await state.set_state(Livings.choice)
@@ -251,7 +255,7 @@ async def living_address(message: Message, state: FSMContext):
         photos.append(data.get("photo4")) if data.get("photo4") else None
         photos.append(data.get("photo5")) if data.get("photo5") else None
         photos.append(data.get("photo6")) if data.get("photo6") else None
-        new_living_post = await rq.add_living_post_to_user(session, new_living, photos)
+        new_living_post = await rq.add_living_to_user_by_id(session, new_living, photos)
         print("Living post added successfully", new_living_post)
 
     await state.set_state(Livings.choice)
@@ -358,7 +362,7 @@ async def living_summary(living: Living, photos): # use ParseMode.HTML (parse_mo
                 markdown.hitalic(f'{living.price}'),
                 markdown.hbold(f'\nLandlord ->'),
                 markdown.hlink(f'@{living.username}', f'https://t.me/{living.username}'),
-                markdown.hblockquote(f'📍 {living.location}, {living.address}')
+                markdown.hblockquote(f'📍 {living.city}, {living.address}')
             )
     # summary = markdown.text(
     #             markdown.text(f'{description}\n'),

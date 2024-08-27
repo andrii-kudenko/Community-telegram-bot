@@ -33,7 +33,7 @@ async def add_username_to_user_by_id(db: AsyncSession, user_id: BigInteger, new_
 async def add_photos_to_living(db: AsyncSession, living_id: int, photos: list):
     print("IM IN ADDING PHOTOS")
     for photo in photos:
-        new_photo = Living(living_id=living_id, photo_id=photo)
+        new_photo = LivingPhoto(living_id=living_id, photo_id=photo)
         db.add(new_photo)
     await db.commit()
 async def remove_existing_photos(db: AsyncSession, existing_living: Living):

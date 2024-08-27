@@ -36,7 +36,7 @@ class User(Base):
     jobs: Mapped[List["Job"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Job.user_id')
     user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
     sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='SaleItem.user_id')
-    livings: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Living.user_id')
+    livings: Mapped[List["Living"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Living.user_id')
 
     def get_jobs_search_id_list(self):
         return self.jobs_search_id_list

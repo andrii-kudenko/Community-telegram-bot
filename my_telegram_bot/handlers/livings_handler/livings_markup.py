@@ -2,9 +2,13 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
+# --- SEARCH ---
 btnSearch = KeyboardButton(text='Search 🔎')
 btnPost = KeyboardButton(text='Post an ad 📰')
 livingsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost]])
+
+btnNext = KeyboardButton(text='Next ➡️')
+nextMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnNext]])
 
 # --- HANDLE PHOTOS ---
 btnSavePhoto1 = KeyboardButton(text='Continue with 1/6 photos')
