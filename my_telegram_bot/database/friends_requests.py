@@ -3,7 +3,6 @@ from sqlalchemy import BigInteger, update
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Bio, BioPhoto, Like
-import logging
 
 # --- HANDLE PHOTOS ---
 async def add_photos_to_bio(db: AsyncSession, bio_id: int, photos: list):
@@ -24,7 +23,6 @@ async def remove_existing_photos(db: AsyncSession, existing_bio: Bio):
 async def add_bio_to_user_by_id(db: AsyncSession, bio, photos):
     result = await db.execute(select(Bio).options(joinedload(Bio.photos)).filter(Bio.user_id == bio.user_id))
     existing_bio = result.scalars().first()
-
     if existing_bio is None:
         print("THE USER IS NONE", existing_bio)
         # db_bio = Bio(user_id=bio.user_id, profile_name=bio.profile_name, profile_bio=bio.profile_bio, profile_age=int(bio.profile_age), 
@@ -47,18 +45,10 @@ async def add_bio_to_user_by_id(db: AsyncSession, bio, photos):
         await db.commit()
         await db.refresh(db_bio)
         await add_photos_to_bio(db, db_bio.id, photos)
-        # for photo in photos:
-        #     new_photo = BioPhoto(bio_id=db_bio.id, photo_id=photo)
-        #     db.add(new_photo)
-        # await db.commit()
         return db_bio
     else:
         print("THE USER EXISTS", existing_bio)
-        # for photo in existing_bio.photos:
-        #     db.delete(photo)
-        # await db.commit()
         await remove_existing_photos(db, existing_bio)
-
         existing_bio.profile_name = bio.profile_name
         existing_bio.profile_bio = bio.profile_bio
         existing_bio.profile_age = int(bio.profile_age)
@@ -72,10 +62,6 @@ async def add_bio_to_user_by_id(db: AsyncSession, bio, photos):
         await db.commit()
         await db.refresh(existing_bio)
         await add_photos_to_bio(db, existing_bio.id, photos)
-        # for photo in photos:
-        #     new_photo = BioPhoto(bio_id=existing_bio.id, photo_id=photo)
-        #     db.add(new_photo)
-        # await db.commit()
         return existing_bio
 async def get_my_bio_by_user_id(db: AsyncSession, user_id: BigInteger): #Eventually'd be replaced by functions below (delete)
     result = await db.execute(select(Bio).options(joinedload(Bio.photos)).filter(Bio.user_id == user_id))
@@ -115,6 +101,7 @@ async def update_my_city_search(db: AsyncSession, my_bio_id, new_city_search: bo
     res = await db.execute(stmt)
     await db.commit()
     return res
+# NOT USED
 async def get_my_bio_id_search_id_city(db: AsyncSession, telegram_user_id: BigInteger):
     result = await db.execute(select(Bio).filter(Bio.user_id == telegram_user_id))
     my_bio = result.scalars().first()
@@ -122,14 +109,6 @@ async def get_my_bio_id_search_id_city(db: AsyncSession, telegram_user_id: BigIn
 
 
 # --- HANDLE SEARCH ---
-async def get_next_bio_by_id(db: AsyncSession, bio_id: int, exclude_bio_id: int):
-    stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).order_by(Bio.id).limit(1)
-    result = await db.execute(stmt)
-    bio = result.scalars().first()
-    photos = []
-    if bio:
-        photos = bio.photos
-    return bio, photos
 async def get_next_bio_by_id_with_city(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str): # Add a calculator to calculate distances
     cities = [city.strip().lower()]
     stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).filter(Bio.profile_city.in_(cities)).order_by(Bio.id).limit(1)
@@ -142,6 +121,15 @@ async def get_next_bio_by_id_with_city(db: AsyncSession, bio_id: int, exclude_bi
 async def get_next_bio_by_id_without_city(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str): # Add a calculator to calculate distances
     cities = [city.strip().lower()]
     stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).filter(Bio.profile_city != city).order_by(Bio.id).limit(1)
+    result = await db.execute(stmt)
+    bio = result.scalars().first()
+    photos = []
+    if bio:
+        photos = bio.photos
+    return bio, photos
+# NOT USED
+async def get_next_bio_by_id(db: AsyncSession, bio_id: int, exclude_bio_id: int):
+    stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).order_by(Bio.id).limit(1)
     result = await db.execute(stmt)
     bio = result.scalars().first()
     photos = []
@@ -169,14 +157,12 @@ async def like_user(db: AsyncSession, bio_id: int, liked_bio_id: int):
             update_stmt = (update(Like).where(Like.bio_id==bio_id, Like.liked_bio_id==liked_bio_id)
                            .values(is_match=True))
             await db.execute(update_stmt)
-
             update_reciprocal_stmt = (
                 update(Like).
                 where(Like.bio_id==liked_bio_id, Like.liked_bio_id==bio_id).
                 values(is_match=True)
             )
             await db.execute(update_reciprocal_stmt)
-
             await db.commit()
             return True
     return False
@@ -188,6 +174,18 @@ async def get_bio_by_id(db: AsyncSession, bio_id: int):
     if bio:
         photos = bio.photos
     return bio, photos
+# END
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -204,7 +202,7 @@ async def get_bio_by_id(db: AsyncSession, bio_id: int):
 #     matched_user = match.liked_bio
 #     return matched_user
 
-async def get_test(db: AsyncSession):
-    result = await db.execute(select(Bio).filter(Bio.user_id == 5479352761))
-    return result.scalars().first()
+# async def get_test(db: AsyncSession):
+#     result = await db.execute(select(Bio).filter(Bio.user_id == 5479352761))
+#     return result.scalars().first()
 

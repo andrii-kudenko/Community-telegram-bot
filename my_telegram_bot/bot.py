@@ -19,10 +19,10 @@ from aiogram.fsm.context import FSMContext
 import markups.markups as nav
 import random
 # from handlers.message_handler import message_router
-from handlers.friendships_handler.handler import friendship_router, start_friends_query
-from handlers.sales_handler.handler import sales_router, start_sales
-from handlers.jobs_handler.handler import job_router, start_jobs
-from handlers.livings_handler.handler import living_router, start_livings
+from my_telegram_bot.handlers.friendships_handler.friendships_handler import friendship_router, start_friends_query
+from my_telegram_bot.handlers.sales_handler.sales_handler import sales_router, start_sales
+from my_telegram_bot.handlers.jobs_handler.jobs_handler import job_router, start_jobs
+from my_telegram_bot.handlers.livings_handler.livings_handler import living_router, start_livings
 from handlers.empty_input_handler import empty_router
 from home import home_router
 from bot_info import bot as bot

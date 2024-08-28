@@ -625,16 +625,6 @@ async def searching_dislike(message: Message, state: FSMContext):
 #         ), link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 
-# --- ERROR HANDLER ---
-@friendship_router.message(Friends.choice)
-async def choice_invalid(message: Message):
-    await message.answer("I don't understand you. Please choose your action or Go /home")
-@friendship_router.message(Friends.searching)
-@friendship_router.message(Friends.bio_overview)
-async def friends_invalid(message: Message):
-    await message.answer("I don't understand you. Please choose your action or Go /home")
-
-
 # --- HELPER FUNCTIONS ---
 async def profile_summary(bio, photos):
     summary = markdown.text(
@@ -649,3 +639,58 @@ async def profile_summary(bio, photos):
         media.append(InputMediaPhoto(media=photo.photo_id))
     media[-1].caption = summary
     return media
+
+
+# --- ERROR HANDLING --- 
+    # choice = State()
+    # searching = State()
+    # bio_overview = State()
+    
+    # name = State()
+    # age = State()
+    # bio = State()
+    # photo1 = State()
+    # photo2 = State()
+    # photo3 = State()
+    # location = State()
+    
+@friendship_router.message(Friends.choice)
+async def choice_invalid(message: Message):
+    await message.answer("I don't understand you. Please choose your action or Go /home")
+@friendship_router.message(Friends.searching)
+async def searching_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Friends.bio_overview)
+async def bio_overview_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Bio.name)
+async def name_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Bio.age)
+async def age_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Bio.bio)
+async def bio_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Bio.photo1)
+@friendship_router.message(Bio.photo2)
+@friendship_router.message(Bio.photo3)
+async def photo1_invalid(message: Message):
+    await message.answer("I don't understand you")
+@friendship_router.message(Bio.location)
+async def location_invalid(message: Message):
+    await message.answer("I don't understand you")
+
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "my_bio"))
+async def my_bio_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "new_bio"))
+async def new_bio_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search"))
+async def go_search_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search_beyond"))
+async def go_search_beyond_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+# END

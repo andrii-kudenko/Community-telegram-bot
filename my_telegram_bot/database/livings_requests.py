@@ -3,15 +3,7 @@ from sqlalchemy import BigInteger, update
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Living, LivingPhoto
-import logging
 import random
-
-# add_id_to_user_items_search_id_list
-# add_living_post_to_user
-# get_next_living_with_city
-# get_next_living_without_city
-# update_my_livings_city_search
-# get_user
 
 
 # --- USER ---
@@ -58,10 +50,6 @@ async def add_living_to_user_by_id(db: AsyncSession, living, photos):
     await db.commit()
     await db.refresh(db_living)
     await add_photos_to_living(db, db_living.id, photos)
-    # for photo in photos:
-    #     new_photo = BioPhoto(bio_id=db_bio.id, photo_id=photo)
-    #     db.add(new_photo)
-    # await db.commit()
     return db_living
 
 
@@ -76,10 +64,7 @@ async def add_id_to_user_livings_search_id_list(db: AsyncSession, user_id, livin
     res = await db.execute(stmt)
     await db.commit()
     return res
-
 async def update_my_livings_city_search(db: AsyncSession, my_id, new_livings_city_search: bool):
-    # await db.execute(update(Bio).filter(Bio.id == my_bio_id).values(search_id=new_search_id))
-    # return True
     print('id to be updated', new_livings_city_search)
     stmt = update(User).filter(User.user_id == my_id).values(items_city_search=new_livings_city_search)
     res = await db.execute(stmt)
@@ -101,7 +86,6 @@ async def get_next_living_with_city(db: AsyncSession, exclude_living_ids: list, 
         await db.refresh(living, attribute_names=["photos"])
         return living, living.photos
     return None, None
-
 async def get_next_living_without_city(db: AsyncSession, exclude_living_ids: list, city: str):
     if exclude_living_ids is None:
         exclude_living_ids = []
@@ -117,3 +101,4 @@ async def get_next_living_without_city(db: AsyncSession, exclude_living_ids: lis
         await db.refresh(living, attribute_names=["photos"])
         return living, living.photos
     return None, None
+# END

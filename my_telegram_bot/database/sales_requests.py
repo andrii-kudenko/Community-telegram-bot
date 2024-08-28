@@ -3,7 +3,6 @@ from sqlalchemy import BigInteger, update
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Bio, BioPhoto, Like, SaleItem, SaleItemPhoto
-import logging
 import random
 
 
@@ -51,10 +50,6 @@ async def add_item_to_user_by_id(db: AsyncSession, item, photos):
     await db.commit()
     await db.refresh(db_item)
     await add_photos_to_item(db, db_item.id, photos)
-    # for photo in photos:
-    #     new_photo = BioPhoto(bio_id=db_bio.id, photo_id=photo)
-    #     db.add(new_photo)
-    # await db.commit()
     return db_item
 
 
@@ -69,14 +64,6 @@ async def add_id_to_user_items_search_id_list(db: AsyncSession, user_id, item_id
     res = await db.execute(stmt)
     await db.commit()
     return res
-
-# async def update_my_search_id(db: AsyncSession, my_bio_id, new_search_id):
-#     print('id to be updated', new_search_id)
-#     stmt = update(Bio).filter(Bio.id == my_bio_id).values(search_id=new_search_id)
-#     res = await db.execute(stmt)
-#     await db.commit()
-#     return res
-
 async def update_my_sales_city_search(db: AsyncSession, my_id, new_sales_city_search: bool):
     # await db.execute(update(Bio).filter(Bio.id == my_bio_id).values(search_id=new_search_id))
     # return True
@@ -85,44 +72,60 @@ async def update_my_sales_city_search(db: AsyncSession, my_id, new_sales_city_se
     res = await db.execute(stmt)
     await db.commit()
     return res
-
+# NOT USED
+async def update_my_search_id(db: AsyncSession, my_bio_id, new_search_id):
+    print('id to be updated', new_search_id)
+    stmt = update(Bio).filter(Bio.id == my_bio_id).values(search_id=new_search_id)
+    res = await db.execute(stmt)
+    await db.commit()
+    return res
 
 # --- HANDLE SEARCH ---
 async def get_next_item_with_city(db: AsyncSession, exclude_item_ids: list, city: str):
     if exclude_item_ids is None:
         exclude_item_ids = []
-    # Query items excluding those in the exclude_item_ids list and filtering by city
-    stmt = (
-        select(SaleItem)
-        .filter(SaleItem.id.notin_(exclude_item_ids), SaleItem.city == city)
-        .order_by(SaleItem.id)
+    stmt = ( # Query items excluding those in the exclude_item_ids list and filtering by city
+        select(SaleItem).filter(SaleItem.id.notin_(exclude_item_ids), SaleItem.city == city).order_by(SaleItem.id)
     )
     result = await db.execute(stmt)
     items = result.scalars().all()  # Ensure unique items are returned
     if items:
-        # Randomly choose one item from the list
-        item = random.choice(items)
+        item = random.choice(items) # Randomly choose one item from the list
         await db.refresh(item, attribute_names=["photos"])
         return item, item.photos
     return None, None
-
 async def get_next_item_without_city(db: AsyncSession, exclude_item_ids: list, city: str):
     if exclude_item_ids is None:
         exclude_item_ids = []
-    # Query items excluding those in the exclude_item_ids list and filtering by city
-    stmt = (
-        select(SaleItem)
-        .filter(SaleItem.id.notin_(exclude_item_ids), SaleItem.city != city)
-        .order_by(SaleItem.id)
+    stmt = ( # Query items excluding those in the exclude_item_ids list and filtering by city
+        select(SaleItem).filter(SaleItem.id.notin_(exclude_item_ids), SaleItem.city != city).order_by(SaleItem.id)
     )
     result = await db.execute(stmt)
     items = result.scalars().all()  # Ensure unique items are returned
     if items:
-        # Randomly choose one item from the list
-        item = random.choice(items)
+        item = random.choice(items) # Randomly choose one item from the list
         await db.refresh(item, attribute_names=["photos"])
         return item, item.photos
     return None, None
+# END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # # --- HANDLE NEXT ---

@@ -5,10 +5,12 @@ from aiogram.filters.callback_data import CallbackData
 # --- SEARCH ---
 btnSearch = KeyboardButton(text='Search 🔎')
 btnPost = KeyboardButton(text='Post an ad 📰')
-livingsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost]])
+btnMyPosts = KeyboardButton(text='View my living ads 🧾')
+livingsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost], [btnMyPosts]])
 
 btnNext = KeyboardButton(text='Next ➡️')
 nextMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnNext]])
+
 
 # --- HANDLE PHOTOS ---
 btnSavePhoto1 = KeyboardButton(text='Continue with 1/6 photos')
@@ -22,9 +24,11 @@ photosUploadingReplyMenu4 = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[
 btnSavePhoto5 = KeyboardButton(text='Continue with 5/6 photos')
 photosUploadingReplyMenu5 = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSavePhoto5]])
 
+
 # --- LOCATION ---
 btnLocation = KeyboardButton(text='Provide Location', request_location=True)
 locationMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnLocation]])
+
 
 # --- MENUS ---
 class MenuCallback(CallbackData, prefix="navigation"):
@@ -32,6 +36,7 @@ class MenuCallback(CallbackData, prefix="navigation"):
 
 livingsChoiceMenu = InlineKeyboardBuilder() # When there are no more profiles to look
 livingsChoiceMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
+livingsChoiceMenu.button(text='Post living 📰', callback_data=MenuCallback(menu="post_living").pack())
 livingsChoiceMenu.button(text='My livings', callback_data=MenuCallback(menu="my_livings").pack())
 livingsChoiceMenu.adjust(2,1)
 

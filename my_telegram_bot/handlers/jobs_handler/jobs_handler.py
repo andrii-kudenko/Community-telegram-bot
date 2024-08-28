@@ -168,15 +168,21 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 
 
 # --- MY POSTS ---
-@job_router.message(Jobs.choice, F.text == "View my ads 🧾")
-async def my_job_posts(message: Message, state: FSMContext):
+@job_router.message(Jobs.choice, F.text == "View my job ads 🧾")
+async def my_job_posts_by_message(message: Message, state: FSMContext):
     # make a database request
     # and further manipulations
-
     async with SessionLocal() as session:
         new_job = await rq.test_add_job_post_to_user(session)
         print(new_job)
-
+    await message.answer("My posts")
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "my_job_ads"))
+async def my_job_posts_by_query(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:
+        new_job = await rq.test_add_job_post_to_user(session)
+        print(new_job)
     await message.answer("My posts")
 
 # ---NEW POST---
@@ -218,7 +224,6 @@ async def job_location(message: Message, state: FSMContext):
     async with SessionLocal() as session:
         job_post = await rq.add_job_post_to_user(session, new_job)
         print("Job post added successfully", job_post)
-
     await state.set_state(Jobs.choice)
     await message.answer("Good, your ad is successfully posted!", reply_markup=nav.jobsReplyChoiceMenu)
     await set_default_commands(id=message.from_user.id)
@@ -238,7 +243,6 @@ async def job_address(message: Message, state: FSMContext):
     async with SessionLocal() as session:
         job_post = await rq.add_job_post_to_user(session, new_job)
         print("Job post added successfully", job_post)
-
     await state.set_state(Jobs.choice)
     await message.answer("Good, your ad is successfully posted!", reply_markup=nav.jobsReplyChoiceMenu)
 
@@ -316,6 +320,76 @@ async def post_summary(job: Job): # use ParseMode.HTML (parse_mode=ParseMode.HTM
         f"<i>📍 {(job.city).capitalize()}, {job.address}</i>"
     )
     return summary
+
+
+# --- ERROR HANDLING --- 
+    # choice = State()
+    # searching = State()
+
+    # title = State()
+    # description = State()
+    # skills = State()
+    # location = State()
+    # # optional
+    # address = State()
+    
+@job_router.message(Jobs.choice)
+async def choice_invalid(message: Message):
+    await message.answer("I don't understand you. Please choose your action or Go /home")
+@job_router.message(Jobs.searching)
+async def searching_invalid(message: Message):
+    await message.answer("I don't understand you")
+@job_router.message(Job.title)
+async def title_invalid(message: Message):
+    await message.answer("I don't understand you")
+@job_router.message(Job.description)
+async def description_invalid(message: Message):
+    await message.answer("I don't understand you")
+@job_router.message(Job.skills)
+async def skills_invalid(message: Message):
+    await message.answer("I don't understand you")
+@job_router.message(Job.location)
+async def location_invalid(message: Message):
+    await message.answer("I don't understand you")
+@job_router.message(Job.address)
+async def address_invalid(message: Message):
+    await message.answer("I don't understand you")
+
+@job_router.callback_query(nav.ApplyCallback.filter(F.menu == "apply"))
+async def apply_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@job_router.callback_query(nav.ApplyCallback.filter(F.menu == "applied"))
+async def applied_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "post_job"))
+async def post_job_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "my_job_ads"))
+async def my_bio_ads_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "jobs_go_search_beyond"))
+async def go_search_beyond_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+# END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # await message.answer("Searching...")

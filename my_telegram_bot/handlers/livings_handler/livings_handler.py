@@ -130,6 +130,25 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
 
 
+# --- MY POSTS ---
+@living_router.message(Livings.choice, F.text == "View my living ads 🧾")
+async def my_living_posts_by_message(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:
+        new_job = await rq.test_add_job_post_to_user(session)
+        print(new_job)
+    await message.answer("My posts")
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
+async def my_living_posts_by_query(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:
+        new_job = await rq.test_add_job_post_to_user(session)
+        print(new_job)
+    await message.answer("My posts")
+
+
 # --- NEW LIVING ---
 @living_router.message(Livings.choice, F.text == "Post an ad 📰")
 async def living(message: Message, state: FSMContext):
@@ -209,7 +228,6 @@ async def living_price(message: Message, state: FSMContext):
     await state.update_data(price=message.text)
     await state.set_state(Living.location)
     await message.answer(f"Ok, now provide the city for your place:", reply_markup=nav.locationMenu)
-
 @living_router.message(Living.location, F.location)
 async def living_location(message: Message, state: FSMContext):
     user_location = location.get_location(message.location.latitude, message.location.longitude)
@@ -375,3 +393,58 @@ async def living_summary(living: Living, photos): # use ParseMode.HTML (parse_mo
         media.append(InputMediaPhoto(media=photo.photo_id))
     media[-1].caption = summary
     return media
+
+
+# --- ERROR HANDLING --- 
+    # choice = State()
+    # searching = State()
+
+    # description = State()
+    # photo1 = State()
+    # photo2 = State()
+    # photo3 = State()
+    # photo4 = State()
+    # photo5 = State()
+    # photo6 = State()
+    # price = State()
+    # location = State()
+    # # optional
+    # address = State()
+    
+@living_router.message(Livings.choice)
+async def choice_invalid(message: Message):
+    await message.answer("I don't understand you. Please choose your action or Go /home")
+@living_router.message(Livings.searching)
+async def searching_invalid(message: Message):
+    await message.answer("I don't understand you")
+@living_router.message(Living.description)
+async def description_invalid(message: Message):
+    await message.answer("I don't understand you")
+@living_router.message(Living.photo1)
+@living_router.message(Living.photo2)
+@living_router.message(Living.photo3)
+@living_router.message(Living.photo4)
+@living_router.message(Living.photo5)
+@living_router.message(Living.photo6)
+async def photos_invalid(message: Message):
+    await message.answer("I don't understand you")
+@living_router.message(Living.price)
+async def price_invalid(message: Message):
+    await message.answer("I don't understand you")
+@living_router.message(Living.location)
+async def location_invalid(message: Message):
+    await message.answer("I don't understand you")
+@living_router.message(Living.address)
+async def address_invalid(message: Message):
+    await message.answer("I don't understand you")
+
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
+async def my_livings_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "post_living"))
+async def post_living_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "livings_go_search_beyond"))
+async def go_search_beyond_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+# END

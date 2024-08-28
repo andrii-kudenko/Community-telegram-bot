@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Job, JobApplication
 import random
 
+
+# --- USER ---
 async def get_user(db: AsyncSession, user_id: BigInteger):
     result = await db.execute(select(User).filter(User.user_id == user_id))
     user = result.scalars().first()
@@ -41,12 +43,12 @@ async def get_next_job_by_id_without_city(db: AsyncSession, exclude_job_ids: lis
         return None
 
 
+# --- HANDLE JOBS ---
 async def add_job_post_to_user(db: AsyncSession, job):
     db_job = Job(user_id=job.user_id, title=job.title, description=job.description, skills=job.skills,
                  latitude=str(job.latitude) if job.coordinates else '0',
                  longtitude=str(job.longtitude) if job.coordinates else '0',
                  city=job.city, address=job.address)
-    # result = await db.execute(select(Job))
     db.add(db_job)
     await db.commit()
     await db.refresh(db_job)
@@ -56,12 +58,13 @@ async def test_add_job_post_to_user(db: AsyncSession):
                  latitude=str(43.468128),
                  longtitude=str(-79.697358),
                  city='Oakville', address='Oakville')
-    # result = await db.execute(select(Job))
     db.add(db_job)
     await db.commit()
     await db.refresh(db_job)
     return db_job
 
+
+# --- USER FEATURES ---
 async def add_id_to_user_jobs_search_id_list(db: AsyncSession, user_id, job_id):
     stmt = select(User).filter(User.user_id == user_id)
     result = await db.execute(stmt)
@@ -72,14 +75,12 @@ async def add_id_to_user_jobs_search_id_list(db: AsyncSession, user_id, job_id):
     res = await db.execute(stmt)
     await db.commit()
     return res
-
 async def apply_for_job(db: AsyncSession, job_id, applicant_user_id):
     job_application = JobApplication(job_id=job_id, applicant_user_id=applicant_user_id)
     db.add(job_application)
     await db.commit()
     await db.refresh(job_application)
     return job_application
-
 async def update_user_jobs_search_id_list(db: AsyncSession, user_id):
     numbers = [1, 2, 3, 4, 5]
     stmt = select(User).filter(User.user_id == user_id)
@@ -89,15 +90,32 @@ async def update_user_jobs_search_id_list(db: AsyncSession, user_id):
     await db.commit()
     await db.refresh(user)
     return user
-
 async def update_my_jobs_city_search(db: AsyncSession, my_id, new_jobs_city_search: bool):
-    # await db.execute(update(Bio).filter(Bio.id == my_bio_id).values(search_id=new_search_id))
-    # return True
     print('id to be updated', new_jobs_city_search)
     stmt = update(User).filter(User.user_id == my_id).values(jobs_city_search=new_jobs_city_search)
     res = await db.execute(stmt)
     await db.commit()
     return res
+# END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # async def get_next_job_by_id(db: AsyncSession, job_id: int, exclude_job_ids: list):
 #     stmt = select(func.count(Job.id))

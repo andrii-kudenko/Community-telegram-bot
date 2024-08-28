@@ -142,26 +142,23 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
 
 
-# @sales_router.message(Sales.searching)
-# async def obtain_photo(message: Message, state: FSMContext):
-#     print(type(message.photo))
-#     print(len(message.photo))
-#     file_id = message.photo[-1].file_id
-#     title_1 = "First Photo Title"
-#     description_1 = "This is the description of the first photo."
-#     caption_1 = f"{title_1}\n{description_1}"
-    
-#     title_2 = "Second Photo Title"
-#     description_2 = "This is the description of the second photo."
-#     caption_2 = f"*{title_2}*\n{description_2}"
-#     me = FSInputFile("me_hi.jpg")
-#     media = [
-#         InputMediaPhoto(media=file_id, caption=caption_1),
-#         InputMediaPhoto(media=me)
-#     ]
-#     print(type(file_id))
-#     print(len(file_id))
-#     await message.answer_media_group(media=media)
+# --- MY POSTS ---
+@sales_router.message(Sales.choice, F.text == "View my sale ads 🧾")
+async def my_items_by_message(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:
+        new_job = await rq.test_add_job_post_to_user(session)
+        print(new_job)
+    await message.answer("My posts")
+@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "my_items"))
+async def my_items_by_query(message: Message, state: FSMContext):
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:
+        new_job = await rq.test_add_job_post_to_user(session)
+        print(new_job)
+    await message.answer("My posts")
 
 
 # --- NEW ITEM ---
@@ -320,6 +317,74 @@ async def item_summary(item: SaleItem, photos): # use ParseMode.HTML (parse_mode
         media.append(InputMediaPhoto(media=photo.photo_id))
     media[-1].caption = summary
     return media
+
+
+# --- ERROR HANDLING --- 
+    # choice = State()
+    # searching = State()
+
+    # title = State()
+    # description = State()
+    # photo1 = State()
+    # photo2 = State()
+    # photo3 = State()
+    # price = State()
+    # location = State()
+    
+@sales_router.message(Sales.choice)
+async def choice_invalid(message: Message):
+    await message.answer("I don't understand you. Please choose your action or Go /home")
+@sales_router.message(Sales.searching)
+async def searching_invalid(message: Message):
+    await message.answer("I don't understand you")
+@sales_router.message(SaleItem.title)
+async def title_invalid(message: Message):
+    await message.answer("I don't understand you")
+@sales_router.message(SaleItem.description)
+async def description_invalid(message: Message):
+    await message.answer("I don't understand you")
+@sales_router.message(SaleItem.tphoo1)
+@sales_router.message(SaleItem.photo2)
+@sales_router.message(SaleItem.photo3)
+async def photos_invalid(message: Message):
+    await message.answer("I don't understand you")
+@sales_router.message(SaleItem.price)
+async def price_invalid(message: Message):
+    await message.answer("I don't understand you")
+@sales_router.message(SaleItem.location)
+async def location_invalid(message: Message):
+    await message.answer("I don't understand you")
+
+@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "my_items"))
+async def my_items_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "post_item"))
+async def post_item_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "sales_go_search_beyond"))
+async def go_search_beyond_invalid(query: CallbackQuery):
+    await query.message.answer("I don't understand")
+# END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # job_skills: str = job.skills
     # skills_list: list = job_skills.split(',')
     # skills_formatted = "\n".join([f"- {skill.strip().capitalize()}" for skill in skills_list])
