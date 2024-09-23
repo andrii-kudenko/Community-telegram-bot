@@ -1,5 +1,5 @@
 from sqlalchemy.future import select
-from sqlalchemy import BigInteger, update, func
+from sqlalchemy import BigInteger, update, func, delete
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Job, JobApplication
@@ -43,7 +43,26 @@ async def get_next_job_by_id_without_city(db: AsyncSession, exclude_job_ids: lis
         return None
 
 
+
 # --- HANDLE JOBS ---
+async def get_job_by_id(db: AsyncSession, job_id: int):
+    stmt = select(Job).filter(Job.id == job_id).order_by(Job.id)
+    result = await db.execute(stmt)
+    job = result.scalars().one()
+    if job:
+        return job
+    else:
+        return None
+async def delete_related_job_applications(db: AsyncSession, job_id: int):
+    stmt = delete(JobApplication).where(JobApplication.job_id == job_id)
+    await db.execute(stmt)
+    await db.commit()
+async def delete_job_by_id(db: AsyncSession, job_id: int):
+    await delete_related_job_applications(db, job_id)
+    stmt = delete(Job).where(Job.id == job_id)
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
 async def add_job_post_to_user(db: AsyncSession, job):
     db_job = Job(user_id=job.user_id, title=job.title, description=job.description, skills=job.skills,
                  latitude=str(job.latitude) if job.coordinates else '0',
@@ -62,6 +81,16 @@ async def test_add_job_post_to_user(db: AsyncSession):
     await db.commit()
     await db.refresh(db_job)
     return db_job
+async def update_job_by_id(db: AsyncSession, job_id: int, field, field_value: str):
+    stmt = update(Job).where(Job.id == job_id).values({field: field_value})
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def get_user_jobs(db: AsyncSession, user_id):
+    stmt = select(Job).filter(Job.user_id == user_id)
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    return jobs
 
 
 # --- USER FEATURES ---

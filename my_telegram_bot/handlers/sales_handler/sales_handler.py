@@ -152,13 +152,13 @@ async def my_items_by_message(message: Message, state: FSMContext):
         print(new_job)
     await message.answer("My posts")
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "my_items"))
-async def my_items_by_query(message: Message, state: FSMContext):
+async def my_items_by_query(query: CallbackQuery, state: FSMContext):
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
         new_job = await rq.test_add_job_post_to_user(session)
         print(new_job)
-    await message.answer("My posts")
+    await query.message.answer("My posts")
 
 
 # --- NEW ITEM ---
@@ -343,7 +343,7 @@ async def title_invalid(message: Message):
 @sales_router.message(SaleItem.description)
 async def description_invalid(message: Message):
     await message.answer("I don't understand you")
-@sales_router.message(SaleItem.tphoo1)
+@sales_router.message(SaleItem.photo1)
 @sales_router.message(SaleItem.photo2)
 @sales_router.message(SaleItem.photo3)
 async def photos_invalid(message: Message):

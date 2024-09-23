@@ -140,13 +140,13 @@ async def my_living_posts_by_message(message: Message, state: FSMContext):
         print(new_job)
     await message.answer("My posts")
 @living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
-async def my_living_posts_by_query(message: Message, state: FSMContext):
+async def my_living_posts_by_query(query: CallbackQuery, state: FSMContext):
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
         new_job = await rq.test_add_job_post_to_user(session)
         print(new_job)
-    await message.answer("My posts")
+    await query.message.answer("My posts")
 
 
 # --- NEW LIVING ---

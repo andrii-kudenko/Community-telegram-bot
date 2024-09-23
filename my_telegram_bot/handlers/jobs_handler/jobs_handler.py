@@ -9,7 +9,7 @@ from aiogram import Router, F, html
 from aiogram.utils import markdown
 from aiogram.utils.markdown import bold, italic, text, code, pre
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, User, Chat
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -20,7 +20,7 @@ from utils import location
 from bot_info import set_back_commands, set_default_commands
 from database import jobs_requests as rq
 from database.models import SessionLocal
-from database.models import Job
+from database.models import Job as JobModel
 
 # from handlers.friendships_handler.friendships_markup import MenuCallback as friendsMenuCallback
 # from friendships_handler.friendships_markup import MenuCallback
@@ -50,6 +50,22 @@ class Job(StatesGroup):
     location = State()
     # optional
     address = State()
+class JobEdit(StatesGroup):
+    job_id = State()
+    chat_instance = State()
+    title = State()
+    description = State()
+    skills = State()
+    location = State()
+    address = State()
+
+# class UpdateJob(StatesGroup):
+#     title = State()
+#     description = State()
+#     skills = State()
+#     location = State()
+#     # optional
+#     address = State()
 
     # ---UTILITY FUNCTIONS---
 search_funcitons_map = { # execute appropriate function depending on the city_search value in user
@@ -67,6 +83,12 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_jobs(message: Message, state: FSMContext):
     await state.set_state(Jobs.choice)
     await message.answer("Hi there! Choose the action:", reply_markup=nav.jobsReplyChoiceMenu)
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "leave"))
+async def start_jobs_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Jobs")
+    await state.set_state(Jobs.choice)
+    await query.message.delete()
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.jobsReplyChoiceMenu)
 
 @job_router.message(Job.title, Command("cancel", prefix=("!/")))
 @job_router.message(Job.description, Command("cancel", prefix=("!/")))
@@ -169,21 +191,175 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 
 # --- MY POSTS ---
 @job_router.message(Jobs.choice, F.text == "View my job ads 🧾")
-async def my_job_posts_by_message(message: Message, state: FSMContext):
+async def my_job_posts_by_message(message: Message, state: FSMContext, user_id: int = 0, has_title: bool = True, edit_message: bool = False):
+    # await message.answer("Hello")
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
-    await message.answer("My posts")
+        my_jobs = await rq.get_user_jobs(session, user_id or message.from_user.id)
+        for job in my_jobs:
+            print(job.title, job.id)
+        if my_jobs:
+            keyboard = await nav.create_jobs_keyboard(my_jobs)
+            title = await message.answer("--- Posts Manager ---", reply_markup=ReplyKeyboardRemove()) if has_title else None
+            await message.edit_text("My Posts", reply_markup=keyboard) if edit_message else await message.answer("My Posts", reply_markup=keyboard)
+            if title:
+                await title.delete()
+        # else:
+        #     await message.answer("No posts")
 @job_router.callback_query(nav.MenuCallback.filter(F.menu == "my_job_ads"))
-async def my_job_posts_by_query(message: Message, state: FSMContext):
+async def my_job_posts_by_query(query: CallbackQuery, state: FSMContext):
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
         new_job = await rq.test_add_job_post_to_user(session)
         print(new_job)
-    await message.answer("My posts")
+    await query.message.answer("My posts")
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "list"))
+async def handle_job_list_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    # await query.message.answer(query.chat_instance)
+    # Query the job
+    async with SessionLocal() as session:
+        my_job = await rq.get_job_by_id(session, job_id)
+        if my_job:
+            await query.answer("Post")
+            keyboard = await nav.create_single_job_keyboard(my_job.id)
+            summary = await post_summary(my_job)
+            await query.message.edit_text(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+        else:
+            await query.message.answer("You do not have any posts")
+async def handle_job_list_by_message(message: Message, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    # await query.message.answer(query.chat_instance)
+    # Query the job
+    async with SessionLocal() as session:
+        my_job = await rq.get_job_by_id(session, job_id)
+        if my_job:
+            # await query.answer("Post")
+            keyboard = await nav.create_single_job_keyboard(my_job.id)
+            summary = await post_summary(my_job)
+            await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+        else:
+            await message.answer("You do not have any posts")            
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "back"))
+async def handle_job_back_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    print("ID", job_id)
+    await query.answer("Back")
+    await query.message.edit_text("Canceled")
+    await my_job_posts_by_message(query.message, state, user_id=query.from_user.id, has_title=False, edit_message=True)
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "delete"))
+async def handle_job_delete_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    print("ID", job_id)
+    # Delete the job
+    async with SessionLocal() as session:
+        deleted_job = await rq.delete_job_by_id(session, job_id)
+        if deleted_job:
+            await query.answer("Deleted")
+            await query.message.edit_text("Job post successfully deleted")
+            # await query.message.edit_reply_markup(ReplyKeyboardRemove())
+            await my_job_posts_by_message(query.message, state, user_id=query.from_user.id, has_title=False)
+        else:
+            await query.answer("Error")
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "edit"))
+async def handle_job_edit_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    await query.answer("Edit")
+    keyboard = await nav.create_edit_job_keyboard(job_id)
+    await query.message.edit_text("What do you want to edit?", reply_markup=keyboard)
+@job_router.callback_query(nav.JobsCallback.filter())
+async def handle_job_field_edit_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    job_id = int(callback_data.id)
+    await state.set_state(JobEdit.job_id)
+    await state.update_data(job_id=job_id)
+    await state.set_state(JobEdit.chat_instance)
+    await state.update_data(chat_instance=query.chat_instance)
+    await query.answer(f"{callback_data.action.capitalize()}")
+    match callback_data.action:
+        case "title":
+            await state.set_state(JobEdit.title)
+            await query.message.answer("Provide new title")
+        case "description":
+            await state.set_state(JobEdit.description)
+            await query.message.edit_text("Provide new description")
+        case "skills":
+            await state.set_state(JobEdit.skills)
+            await query.message.answer("Provide new skills")
+        case "city":
+            await state.set_state(JobEdit.location)
+            await query.message.answer("Provide new city")
+        case "address":
+            await state.set_state(JobEdit.address)
+            await query.message.answer("Provide new address")
+@job_router.message(JobEdit.title, F.text)
+@job_router.message(JobEdit.description, F.text)
+@job_router.message(JobEdit.skills, F.text)
+async def handle_job_field_update_callback(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    data = await state.get_data()
+    job_id = data["job_id"]
+    chat_instance = data["chat_instance"]
+    callback_data = nav.JobsCallback(id=str(job_id), action="list")
+    query = CallbackQuery(
+    id="1",
+    from_user=User(id=message.from_user.id, is_bot=False, first_name="Test"),
+    message=Message(
+        message_id=1,
+        date="2021-01-01",
+        chat=Chat(id=123456, type="private", first_name="Test"),
+        text="Test message"
+    ),
+    chat_instance=chat_instance,
+    data="callback_data"
+)
+    
+    match current_state:
+        case JobEdit.title.state:
+            print("JOB ID", job_id)
+            print("Current State", current_state)
+            # DB query to edit field
+            async with SessionLocal() as session:
+                updated = await rq.update_job_by_id(session, job_id, JobModel.title, message.text) 
+                if updated:
+                    await message.answer("Title successfully updated")
+                    await handle_job_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case JobEdit.description.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_job_by_id(session, job_id, JobModel.description, message.text) 
+                if updated:
+                    await message.answer("Description successfully updated")
+                    await handle_job_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case JobEdit.skills.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_job_by_id(session, job_id, JobModel.skills, message.text) 
+                if updated:
+                    await message.answer("Skills successfully updated")
+                    await handle_job_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case JobEdit.location.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_job_by_id(session, job_id, JobModel.city, message.text) 
+                if updated:
+                    await message.answer("Location successfully updated")
+                    await handle_job_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case JobEdit.address.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_job_by_id(session, job_id, JobModel.address, message.text) 
+                if updated:
+                    await message.answer("Address successfully updated")
+                    await handle_job_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+    # await my_job_posts_by_query(query, state)
 
 # ---NEW POST---
 @job_router.message(Jobs.choice, F.text == "Post an ad 📰")
