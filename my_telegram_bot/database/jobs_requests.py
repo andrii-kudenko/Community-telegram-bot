@@ -23,8 +23,8 @@ async def get_next_job_by_id(db: AsyncSession, exclude_job_ids: list):
         return job
     else:
         return None
-async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, city: str):
-    stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.city == city).order_by(Job.id)
+async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
+    stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city == city).order_by(Job.id)
     result = await db.execute(stmt)
     jobs = result.scalars().all()
     if jobs:
@@ -32,8 +32,8 @@ async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, 
         return job
     else:
         return None
-async def get_next_job_by_id_without_city(db: AsyncSession, exclude_job_ids: list, city: str):
-    stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.city != city).order_by(Job.id)
+async def get_next_job_by_id_without_city(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
+    stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city != city).order_by(Job.id)
     result = await db.execute(stmt)
     jobs = result.scalars().all()
     if jobs:
@@ -53,6 +53,14 @@ async def get_job_by_id(db: AsyncSession, job_id: int):
         return job
     else:
         return None
+async def get_applicants_by_job_id(db: AsyncSession, job_id):
+    stmt = select(JobApplication).filter(JobApplication.job_id == job_id).options(joinedload(JobApplication.applicant_user)).order_by(JobApplication.id)
+    result = await db.execute(stmt)
+    job_applications = result.scalars().all()
+    applicants = []
+    for application in job_applications:
+        applicants.append(application.applicant_user)
+    return applicants
 async def delete_related_job_applications(db: AsyncSession, job_id: int):
     stmt = delete(JobApplication).where(JobApplication.job_id == job_id)
     await db.execute(stmt)

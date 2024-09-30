@@ -116,7 +116,7 @@ class Job(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="jobs", foreign_keys=[user_id])  
-    job_applications: Mapped["JobApplication"] = relationship(back_populates="job", cascade="all, delete-orphan", foreign_keys='JobApplication.job_id')
+    job_applications: Mapped[List["JobApplication"]] = relationship(back_populates="job", cascade="all, delete-orphan", foreign_keys='JobApplication.job_id')
     
     def get_skills(self):
         return self.skills.split(",")  # Convert comma-separated string back to list

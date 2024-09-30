@@ -78,6 +78,7 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 # }
 
 
+
 # --- COMMANDS ---
 @job_router.message(Command("jobs", prefix=("!/")))
 async def start_jobs(message: Message, state: FSMContext):
@@ -127,6 +128,7 @@ async def back_handler(message: Message, state: FSMContext) -> None:
             await message.answer("Send me new skills")
 
 
+
 # --- SEARCH ---
 @job_router.message(Jobs.choice, F.text == "Search 🔎")
 async def search_by_message(message: Message, state: FSMContext): 
@@ -138,7 +140,7 @@ async def search_by_message(message: Message, state: FSMContext):
     await state.set_state(Jobs.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
-        job = await rq.get_next_job_by_id_with_city(session, user.jobs_search_id_list, user.city)
+        job = await rq.get_next_job_by_id_with_city(session, user.jobs_search_id_list, user.city, user_id)
         if job:
             summary = await post_summary(job)
             await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
@@ -179,7 +181,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
     await state.set_state(Jobs.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
-        job = await rq.get_next_job_by_id_without_city(session, user.jobs_search_id_list, user.city)
+        job = await rq.get_next_job_by_id_without_city(session, user.jobs_search_id_list, user.city, user_id)
         if job:
             summary = await post_summary(job)
             await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
@@ -187,6 +189,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
         else:
             await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
+
 
 
 # --- MY POSTS ---
@@ -212,10 +215,18 @@ async def my_job_posts_by_query(query: CallbackQuery, state: FSMContext):
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
-    await query.message.answer("My posts")
-@job_router.callback_query(nav.JobsCallback.filter(F.action == "list"))
+        my_jobs = await rq.get_user_jobs(session, query.from_user.id)
+        for job in my_jobs:
+            print(job.title, job.id)
+        if my_jobs:
+            keyboard = await nav.create_jobs_keyboard(my_jobs)
+            # title = await query.message.answer("--- Posts Manager ---", reply_markup=ReplyKeyboardRemove()) if has_title else None
+            await query.message.edit_text("My Posts", reply_markup=keyboard) 
+            # if edit_message else await message.answer("My Posts", reply_markup=keyboard)
+            # if title:
+            #     await title.delete()
+    # await query.message.answer("My posts")
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "manage"))
 async def handle_job_list_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
     job_id = int(callback_data.id)
     # await query.message.answer(query.chat_instance)
@@ -263,6 +274,54 @@ async def handle_job_delete_callback(query: CallbackQuery, callback_data: nav.Jo
             await my_job_posts_by_message(query.message, state, user_id=query.from_user.id, has_title=False)
         else:
             await query.answer("Error")
+
+
+
+# FINISH APPLICANTS CHECK
+@job_router.callback_query(nav.ApplicantsCallback.filter(F.action == "back"))
+@job_router.callback_query(nav.JobsCallback.filter(F.action == "check_applicants"))
+async def handle_job_check_applicants_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    # user_id = query.from_user.id
+    job_id = int(callback_data.id)
+    async with SessionLocal() as session:
+        job_applicants = await rq.get_applicants_by_job_id(session, job_id)
+        if job_applicants:
+            await query.answer("Applicants")
+            keyboard = await nav.create_job_applicants_keyboard(job_applicants, job_id)
+            # summary = await post_summary(my_job)
+            await query.message.edit_text(text="Applicants", parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+        else:
+            await query.message.answer("There are no applicants yet")
+            
+@job_router.callback_query(nav.ApplicantsCallback.filter(F.action == "manage"))
+async def handle_job_check_applicants_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
+    # user_id = query.from_user.id
+    applicant_id = int(callback_data.id)
+    job_id = int(callback_data.job_id)
+    async with SessionLocal() as session:
+        # Later change to RESUME search
+        user = await rq.get_user(session, applicant_id)
+        if user:
+            await query.answer("Applicant")
+            keyboard = await nav.create_single_applicant_keyboard(applicant_id, job_id)
+            summary = markdown.text(
+                markdown.hbold(f'{user.name}'),
+                markdown.hunderline(f'{user.user_id} - '),
+                markdown.hblockquote(f'{user.city}')
+            )
+            # summary = await post_summary(my_job)
+            await query.message.edit_text(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+        else:
+            await query.message.answer("There are no applicants yet")
+    
+
+
+    
+    # job_id = int(callback_data.id)
+    # await query.answer("Applicants")
+    # keyboard = await nav.create_edit_job_keyboard(job_id)
+    # await query.message.edit_text("What do you want to edit?", reply_markup=keyboard)
+
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "edit"))
 async def handle_job_edit_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
     job_id = int(callback_data.id)
@@ -296,6 +355,10 @@ async def handle_job_field_edit_callback(query: CallbackQuery, callback_data: na
 @job_router.message(JobEdit.title, F.text)
 @job_router.message(JobEdit.description, F.text)
 @job_router.message(JobEdit.skills, F.text)
+@job_router.message(JobEdit.location, F.location)
+@job_router.message(JobEdit.location, F.text)
+@job_router.message(JobEdit.address, F.location)
+@job_router.message(JobEdit.address, F.text)
 async def handle_job_field_update_callback(message: Message, state: FSMContext):
     current_state = await state.get_state()
     data = await state.get_data()
@@ -314,7 +377,6 @@ async def handle_job_field_update_callback(message: Message, state: FSMContext):
     chat_instance=chat_instance,
     data="callback_data"
 )
-    
     match current_state:
         case JobEdit.title.state:
             print("JOB ID", job_id)
@@ -344,22 +406,48 @@ async def handle_job_field_update_callback(message: Message, state: FSMContext):
                 else: 
                     await message.answer("Error")
         case JobEdit.location.state:
-            async with SessionLocal() as session:
-                updated = await rq.update_job_by_id(session, job_id, JobModel.city, message.text) 
-                if updated:
-                    await message.answer("Location successfully updated")
-                    await handle_job_list_by_message(message, callback_data, state)
-                else: 
-                    await message.answer("Error")
+            if message.location:
+                user_location = location.get_location(message.location.latitude, message.location.longitude)
+                print(user_location)
+                address = user_location[1]
+                async with SessionLocal() as session:
+                    updated = await rq.update_job_by_id(session, job_id, JobModel.city, address)
+                    if updated:
+                        await message.answer("City successfully updated")
+                        await handle_job_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
+            else:
+                async with SessionLocal() as session:
+                    updated = await rq.update_job_by_id(session, job_id, JobModel.city, message.text) 
+                    if updated:
+                        await message.answer("City successfully updated")
+                        await handle_job_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
         case JobEdit.address.state:
-            async with SessionLocal() as session:
-                updated = await rq.update_job_by_id(session, job_id, JobModel.address, message.text) 
-                if updated:
-                    await message.answer("Address successfully updated")
-                    await handle_job_list_by_message(message, callback_data, state)
-                else: 
-                    await message.answer("Error")
+            if message.location:
+                user_location = location.get_location(message.location.latitude, message.location.longitude)
+                print(user_location)
+                address = user_location[0]
+                async with SessionLocal() as session:
+                    updated = await rq.update_job_by_id(session, job_id, JobModel.address, address)
+                    if updated:
+                        await message.answer("Address successfully updated")
+                        await handle_job_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
+            else:
+                async with SessionLocal() as session:
+                    updated = await rq.update_job_by_id(session, job_id, JobModel.address, message.text) 
+                    if updated:
+                        await message.answer("Address successfully updated")
+                        await handle_job_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
     # await my_job_posts_by_query(query, state)
+
+
 
 # ---NEW POST---
 @job_router.message(Jobs.choice, F.text == "Post an ad 📰")
@@ -369,6 +457,14 @@ async def job(message: Message, state: FSMContext):
     await state.set_state(Job.title)
     await message.answer("Type the title for your ad:", reply_markup=ReplyKeyboardRemove())
     await set_back_commands(id=message.from_user.id)
+@job_router.callback_query(nav.MenuCallback.filter(F.menu == "my_job_ads"))
+async def job_by_query(query: CallbackQuery, state: FSMContext):
+    await query.message.edit_text("Creating your ad...\
+                         \nMind that you can always \nGo /back or /cancel the process")
+    await state.set_state(Job.title)
+    await query.message.answer("Type the title for your ad:", reply_markup=ReplyKeyboardRemove())
+    await set_back_commands(id=query.from_user.id)
+
 
 
 # --- POST CREATION ---
@@ -444,6 +540,7 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     await message.answer(text=summary, reply_markup=ReplyKeyboardRemove())
 
 
+
 # --- NEXT ---
 @job_router.message(Jobs.searching, F.text == "Next ➡️")
 async def next_job(message: Message, state: FSMContext):
@@ -452,7 +549,7 @@ async def next_job(message: Message, state: FSMContext):
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
         # job = await rq.get_next_job_by_id(session, user.jobs_search_id_list)
-        job = await search_funcitons_map[user.jobs_city_search](session, user.jobs_search_id_list, user.city)
+        job = await search_funcitons_map[user.jobs_city_search](session, user.jobs_search_id_list, user.city, user_id)
         if job:
             summary = await post_summary(job)
             await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
@@ -469,6 +566,7 @@ async def next_job(message: Message, state: FSMContext):
             await message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
 
+
 # --- JOB APPLICATION ---
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "apply"))
 async def apply_for_job(query: CallbackQuery, state: FSMContext):
@@ -481,6 +579,7 @@ async def apply_for_job(query: CallbackQuery, state: FSMContext):
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "applied"))
 async def applied(query: CallbackQuery, state: FSMContext):
     await query.answer("Already Applied")
+
 
 
 # --- HELPER FUNCTIONS ---

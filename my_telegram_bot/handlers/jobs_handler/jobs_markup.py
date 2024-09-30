@@ -28,6 +28,11 @@ class JobsCallback(CallbackData, prefix="job"):
     id: str
     action: str
 
+class ApplicantsCallback(CallbackData, prefix="applicant"):
+    id: str
+    action: str
+    job_id: str
+
 applyMenu = InlineKeyboardBuilder()
 applyMenu.button(text='Apply 📨', callback_data=ApplyCallback(action="apply").pack())
 appliedMenu = InlineKeyboardBuilder()
@@ -44,9 +49,9 @@ askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=MenuC
 
 async def create_jobs_keyboard(jobs):
     jobsAllMenu = InlineKeyboardBuilder()
-    jobsAllMenu.button(text="Leave", callback_data=MenuCallback(menu="leave").pack())
     for job in jobs:
-        jobsAllMenu.button(text=job.title, callback_data=JobsCallback(id=str(job.id), action="list").pack())
+        jobsAllMenu.button(text=job.title, callback_data=JobsCallback(id=str(job.id), action="manage").pack())
+    jobsAllMenu.button(text="Leave", callback_data=MenuCallback(menu="leave").pack())
     jobsAllMenu.adjust(2)
     return jobsAllMenu.as_markup()
 
@@ -57,8 +62,9 @@ async def create_jobs_keyboard(jobs):
 async def create_single_job_keyboard(id):
     jobMenu = InlineKeyboardBuilder()
     jobMenu.button(text="Back", callback_data=JobsCallback(id=str(id), action="back").pack())
-    jobMenu.button(text="Edit", callback_data=JobsCallback(id=str(id), action="edit").pack())
-    jobMenu.button(text="Delete", callback_data=JobsCallback(id=str(id), action="delete").pack())
+    jobMenu.button(text="✏️ Edit", callback_data=JobsCallback(id=str(id), action="edit").pack())
+    jobMenu.button(text="🖱️ Check applicants", callback_data=JobsCallback(id=str(id), action="check_applicants").pack()) # 📩 🗒️ 🧾
+    jobMenu.button(text="🗑️ Delete", callback_data=JobsCallback(id=str(id), action="delete").pack()) # ❌
     jobMenu.adjust(2)
     return jobMenu.as_markup()
 
@@ -71,3 +77,19 @@ async def create_edit_job_keyboard(id):
     editMenu.button(text="Address", callback_data=JobsCallback(id=str(id), action="address").pack())
     editMenu.adjust(2)
     return editMenu.as_markup()
+
+async def create_job_applicants_keyboard(job_applicants, job_id):
+    applicantsMenu = InlineKeyboardBuilder()
+    for applicant in job_applicants:
+        applicantsMenu.button(text=applicant.name, callback_data=ApplicantsCallback(id=str(applicant.user_id), job_id=str(job_id), action="manage").pack())
+    applicantsMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="manage").pack())
+    applicantsMenu.button(text="Leave", callback_data=MenuCallback(menu="leave").pack())
+    applicantsMenu.adjust(1)
+    return applicantsMenu.as_markup()
+
+async def create_single_applicant_keyboard(applicant_id, job_id):
+    applicantMenu = InlineKeyboardBuilder()
+    applicantMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="check_applicants").pack())
+    applicantMenu.button(text="Next", callback_data=ApplicantsCallback(id=str(applicant_id), job_id=str(job_id), action="next").pack())
+    applicantMenu.adjust(2)
+    return applicantMenu.as_markup()
