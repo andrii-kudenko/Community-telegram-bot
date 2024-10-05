@@ -37,6 +37,7 @@ class User(Base):
     user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
     sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='SaleItem.user_id')
     livings: Mapped[List["Living"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Living.user_id')
+    resume: Mapped["Resume"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def get_jobs_search_id_list(self):
         return self.jobs_search_id_list
@@ -65,6 +66,22 @@ class User(Base):
     #         if rand_number not in existing_numbers:
     #             return rand_number
 
+class Resume(Base):
+    __tablename__ = 'resumes'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    additional_information: Mapped[str] = mapped_column(String(1000), nullable=True)
+    email_address: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=True)
+    location: Mapped[str] = mapped_column(String(100), nullable=True)
+    work_experience: Mapped[str] = mapped_column(String(1000), nullable=True)
+    degree_description: Mapped[str] = mapped_column(String(500), nullable=True)
+    skills: Mapped[str] = mapped_column(String(1000), nullable=True)
+    languages: Mapped[str] = mapped_column(String(500), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="resume")
 
 class Bio(Base):
     __tablename__ = 'bios'

@@ -118,15 +118,15 @@ async def apply_for_job(db: AsyncSession, job_id, applicant_user_id):
     await db.commit()
     await db.refresh(job_application)
     return job_application
-async def update_user_jobs_search_id_list(db: AsyncSession, user_id):
-    numbers = [1, 2, 3, 4, 5]
-    stmt = select(User).filter(User.user_id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalars().first()
-    user.set_jobs_search_id_list(numbers)
-    await db.commit()
-    await db.refresh(user)
-    return user
+# async def update_user_jobs_search_id_list(db: AsyncSession, user_id):
+#     numbers = [1, 2, 3, 4, 5]
+#     stmt = select(User).filter(User.user_id == user_id)
+#     result = await db.execute(stmt)
+#     user = result.scalars().first()
+#     user.set_jobs_search_id_list(numbers)
+#     await db.commit()
+#     await db.refresh(user)
+#     return user
 async def update_my_jobs_city_search(db: AsyncSession, my_id, new_jobs_city_search: bool):
     print('id to be updated', new_jobs_city_search)
     stmt = update(User).filter(User.user_id == my_id).values(jobs_city_search=new_jobs_city_search)

@@ -350,6 +350,7 @@ async def my_bio_by_query(query: CallbackQuery, state: FSMContext):
                     media.append(InputMediaPhoto(media=photo.photo_id))
                 media[-1].caption = summary
             last_message = await query.message.answer_media_group(media=media)
+            await query.message.edit_text("My bio")
             await last_message[-1].answer(text="Choose action", reply_markup=nav.bioChangeMenu.as_markup())
             # await query.message.edit_text(text=summary, reply_markup=nav.bioChangeMenu.as_markup())
         else:

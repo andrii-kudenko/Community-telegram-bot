@@ -27,6 +27,7 @@ from handlers.jobs_handler.jobs_handler import job_router, start_jobs
 # from my_telegram_bot.handlers.jobs_handler.jobs_handler import job_router, start_jobs
 from handlers.livings_handler.livings_handler import living_router, start_livings
 # from my_telegram_bot.handlers.livings_handler.livings_handler import living_router, start_livings
+from handlers.profile_handler.profile_handler import profile_router, start_profile
 from handlers.empty_input_handler import empty_router
 from home import home_router
 from bot_info import bot as bot
@@ -42,7 +43,7 @@ async def get_db():
 dp = Dispatcher()
 main_router = Router(name=__name__)
 dp.include_routers(main_router, home_router, sales_router, job_router, 
-                   living_router, friendship_router, empty_router)
+                   living_router, friendship_router, profile_router, empty_router)
 
 @main_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:    
@@ -59,23 +60,12 @@ async def command_start_handler(message: Message) -> None:
     await message.answer_photo(photo=me, caption="Hi, it's me!")
     await message.answer(f"Привiт, {html.bold(message.from_user.full_name)}! Я твiй помiчник {html.underline("Андрiй")}\nЩоб ти хотiв зробити зараз?", reply_markup=nav.categoryChoiceMenu.as_markup())
     
-# @dp.message(Command("home", prefix=("!/")))
-# async def home(message: Message) -> None:
-#     await message.answer("Home Menu", reply_markup=ReplyKeyboardRemove())
-#     await message.answer("Choose category: egwvwvwvabrbebre", reply_markup=nav.categoryChoiceMenu.as_markup())
-#     # my_message = await message.answer("Home")
-#     # print(my_message)
-#     # print(my_message.message_id)
-#     # await bot.edit_message_text(message_id=my_message.message_id, chat_id=my_message.chat.id, text="Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
-#     # await bot.edit_message_reply_markup()
-#     # await message.edit_text(inline_message_id=my_message.message_id, text="Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
-#     # await message.answer("Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
-#     await set_default_commands(id=message.from_user.id)
 
 @main_router.message(Command("help", prefix=("!/")))
 async def help(message: Message) -> None:
     await message.answer("Help menu", reply_markup=ReplyKeyboardRemove())
     await set_default_commands(id=message.from_user.id)
+
 
 @main_router.callback_query(nav.ChoiceCallback.filter())
 async def choice_query(query: CallbackQuery, callback_data: nav.ChoiceCallback, state: FSMContext):
@@ -95,6 +85,26 @@ async def choice_query(query: CallbackQuery, callback_data: nav.ChoiceCallback, 
         await query.answer("Friends Finder")
         await query.message.edit_text("Friends 🤼")
         await start_friends_query(query, state)
+    if callback_data.func == "profile":
+        await query.answer("Profile")
+        await query.message.edit_text("Profile 👤")
+        await start_profile(query.message, state)
+
+
+# @dp.message(Command("home", prefix=("!/")))
+# async def home(message: Message) -> None:
+#     await message.answer("Home Menu", reply_markup=ReplyKeyboardRemove())
+#     await message.answer("Choose category: egwvwvwvabrbebre", reply_markup=nav.categoryChoiceMenu.as_markup())
+#     # my_message = await message.answer("Home")
+#     # print(my_message)
+#     # print(my_message.message_id)
+#     # await bot.edit_message_text(message_id=my_message.message_id, chat_id=my_message.chat.id, text="Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
+#     # await bot.edit_message_reply_markup()
+#     # await message.edit_text(inline_message_id=my_message.message_id, text="Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
+#     # await message.answer("Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
+#     await set_default_commands(id=message.from_user.id)
+
+
 
 
     # bot.send_message(chat_id=query.from_user.id, text="HEllo")
