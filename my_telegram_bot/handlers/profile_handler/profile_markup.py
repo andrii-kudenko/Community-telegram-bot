@@ -7,14 +7,14 @@ from aiogram.filters.callback_data import CallbackData
 class MenuCallback(CallbackData, prefix="navigation"):
     menu: str
 class ResumeCallback(CallbackData, prefix="navigation"):
-    menu: str
+    action: str
 
 choiceMenu = InlineKeyboardBuilder()
 choiceMenu.button(text="My bio", callback_data=MenuCallback(menu="my_bio").pack())
 choiceMenu.button(text="My job ads", callback_data=MenuCallback(menu="my_job_ads").pack())
 choiceMenu.button(text="My sales ads", callback_data=MenuCallback(menu="my_items").pack())
 choiceMenu.button(text="My livings ads", callback_data=MenuCallback(menu="my_livings").pack())
-choiceMenu.button(text="My Resume", callback_data=MenuCallback(menu="my_resume").pack())
+choiceMenu.button(text="My Resume", callback_data=MenuCallback(menu="my_resume_editor").pack())
 choiceMenu.adjust(2)
 
 
@@ -31,6 +31,44 @@ resumeMenu.button(text="Additional Information", callback_data=ResumeCallback(ac
 resumeMenu.adjust(2)
 
 
+myResumeMenu = InlineKeyboardBuilder()
+myResumeMenu.button(text="Back", callback_data=MenuCallback(menu="my_resume_editor").pack())
+myResumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+
+createResumeMenu = InlineKeyboardBuilder()
+createResumeMenu.button(text="Create", callback_data=ResumeCallback(action="create_resume").pack())
+createResumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+
+async def create_my_resume_keyboard(resume):
+    resumeMenu = InlineKeyboardBuilder()
+    attributes = [
+        'full_name', 'email_address', 'additional_information',
+        'phone_number', 'location', 'work_experience', 
+        'degree_description', 'skills', 'languages'
+    ]
+    for attr in attributes:
+        value = getattr(resume, attr, None)
+        if value:
+            resumeMenu.button(text=f"{attr_dict[attr]}" + " 🟢", callback_data=ResumeCallback(action=f"{attr}").pack())
+        else:
+            resumeMenu.button(text=f"{attr_dict[attr]}" + f"{"*" if attr in ["full_name", "additional_information", "email_address"] else ""} 🔴", callback_data=ResumeCallback(action=f"{attr}").pack())
+    resumeMenu.button(text="View my resume", callback_data=ResumeCallback(action="my_resume").pack())
+    resumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+    resumeMenu.adjust(2)
+    return resumeMenu.as_markup()
+    
+    
+attr_dict = {
+    'full_name': "Full name", 
+    'additional_information': "About",
+    'email_address': "Email address", 
+    'phone_number': "Phone number", 
+    'location': "Location", 
+    'work_experience': "Work Experience", 
+    'degree_description': "Degree Description",
+    'skills': "Skills", 
+    'languages': "Languages", 
+}
 
 # --- SEARCH ---
 btnSearch = KeyboardButton(text='Search 🔎')

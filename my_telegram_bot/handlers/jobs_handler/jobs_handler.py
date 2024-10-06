@@ -84,7 +84,7 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_jobs(message: Message, state: FSMContext):
     await state.set_state(Jobs.choice)
     await message.answer("Hi there! Choose the action:", reply_markup=nav.jobsReplyChoiceMenu)
-@job_router.callback_query(nav.MenuCallback.filter(F.menu == "leave"))
+@job_router.callback_query(nav.JobsCallback.filter(F.menu == "leave"))
 async def start_jobs_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Jobs")
     await state.set_state(Jobs.choice)
@@ -278,7 +278,6 @@ async def handle_job_delete_callback(query: CallbackQuery, callback_data: nav.Jo
 
 
 # FINISH APPLICANTS CHECK
-@job_router.callback_query(nav.ApplicantsCallback.filter(F.action == "back"))
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "check_applicants"))
 async def handle_job_check_applicants_callback(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
     # user_id = query.from_user.id
@@ -352,6 +351,7 @@ async def handle_job_field_edit_callback(query: CallbackQuery, callback_data: na
         case "address":
             await state.set_state(JobEdit.address)
             await query.message.answer("Provide new address")
+
 @job_router.message(JobEdit.title, F.text)
 @job_router.message(JobEdit.description, F.text)
 @job_router.message(JobEdit.skills, F.text)
@@ -365,18 +365,16 @@ async def handle_job_field_update_callback(message: Message, state: FSMContext):
     job_id = data["job_id"]
     chat_instance = data["chat_instance"]
     callback_data = nav.JobsCallback(id=str(job_id), action="list")
-    query = CallbackQuery(
-    id="1",
-    from_user=User(id=message.from_user.id, is_bot=False, first_name="Test"),
-    message=Message(
-        message_id=1,
-        date="2021-01-01",
-        chat=Chat(id=123456, type="private", first_name="Test"),
-        text="Test message"
-    ),
-    chat_instance=chat_instance,
-    data="callback_data"
-)
+    # query = CallbackQuery(
+    # id="1",
+    # from_user=User(id=message.from_user.id, is_bot=False, first_name="Test"),
+    # message=Message(
+    #     message_id=1,
+    #     date="2021-01-01",
+    #     chat=Chat(id=123456, type="private", first_name="Test"),
+    #     text="Test message"
+    # ), chat_instance=chat_instance,
+    # data="callback_data")
     match current_state:
         case JobEdit.title.state:
             print("JOB ID", job_id)

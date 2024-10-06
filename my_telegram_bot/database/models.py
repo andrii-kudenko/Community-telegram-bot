@@ -69,11 +69,11 @@ class User(Base):
 class Resume(Base):
     __tablename__ = 'resumes'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.user_id"), nullable=False)
 
-    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(100), nullable=True)
     additional_information: Mapped[str] = mapped_column(String(1000), nullable=True)
-    email_address: Mapped[str] = mapped_column(String(100), nullable=False)
+    email_address: Mapped[str] = mapped_column(String(100), nullable=True)  
     phone_number: Mapped[str] = mapped_column(String(20), nullable=True)
     location: Mapped[str] = mapped_column(String(100), nullable=True)
     work_experience: Mapped[str] = mapped_column(String(1000), nullable=True)
@@ -189,7 +189,7 @@ class LivingPhoto(Base):
     photo_id: Mapped[str] = mapped_column(String(100), nullable=False)
     living: Mapped["Living"] = relationship(back_populates="photos", foreign_keys=[living_id])
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL) # echo=True
 SessionLocal = sessionmaker(autocommit = False, autoflush=False, bind=engine, class_=AsyncSession)
 
 async def init_db():

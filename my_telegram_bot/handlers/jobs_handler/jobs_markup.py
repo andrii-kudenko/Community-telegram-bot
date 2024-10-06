@@ -51,7 +51,7 @@ async def create_jobs_keyboard(jobs):
     jobsAllMenu = InlineKeyboardBuilder()
     for job in jobs:
         jobsAllMenu.button(text=job.title, callback_data=JobsCallback(id=str(job.id), action="manage").pack())
-    jobsAllMenu.button(text="Leave", callback_data=MenuCallback(menu="leave").pack())
+    jobsAllMenu.button(text="Leave", callback_data=JobsCallback(menu="leave").pack())
     jobsAllMenu.adjust(2)
     return jobsAllMenu.as_markup()
 
@@ -83,7 +83,7 @@ async def create_job_applicants_keyboard(job_applicants, job_id):
     for applicant in job_applicants:
         applicantsMenu.button(text=applicant.name, callback_data=ApplicantsCallback(id=str(applicant.user_id), job_id=str(job_id), action="manage").pack())
     applicantsMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="manage").pack())
-    applicantsMenu.button(text="Leave", callback_data=MenuCallback(menu="leave").pack())
+    applicantsMenu.button(text="Leave", callback_data=JobsCallback(menu="leave").pack())
     applicantsMenu.adjust(1)
     return applicantsMenu.as_markup()
 
