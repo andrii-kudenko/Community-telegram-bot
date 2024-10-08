@@ -38,6 +38,7 @@ async def start_profile(message: Message, state: FSMContext):
     await message.answer("Hi there! Choose the action:", reply_markup=nav.choiceMenu.as_markup())
 
 
+@profile_router.callback_query(nav.MenuCallback.filter(F.menu == "start_profile"))
 @profile_router.callback_query(nav.ResumeCallback.filter(F.action == "leave"))
 async def start_profile_by_query(query: CallbackQuery, state: FSMContext):
     # await query.answer("Jobs")

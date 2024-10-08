@@ -71,7 +71,7 @@ async def help(message: Message) -> None:
 async def choice_query(query: CallbackQuery, callback_data: nav.ChoiceCallback, state: FSMContext):
     if callback_data.func == "jobs":
         await query.answer("Jobs Finder")
-        await query.message.edit_text("Jobs 💻")
+        # await query.message.edit_text("Jobs 💻")
         await start_jobs(query.message, state)
     if callback_data.func == "livings":
         await query.answer("Livings Finder")

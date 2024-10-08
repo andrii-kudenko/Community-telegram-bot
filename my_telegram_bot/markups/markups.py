@@ -5,18 +5,24 @@ from aiogram.filters.callback_data import CallbackData
 class ChoiceCallback(CallbackData, prefix="choice"):
     func: str
 
+class MenuCallback(CallbackData, prefix="navigation"):
+    menu: str
+
+# categoryChoiceMenu = InlineKeyboardBuilder()
+# categoryChoiceMenu.button(text='Jobs 💻', callback_data=ChoiceCallback(func="jobs").pack())
+# categoryChoiceMenu.button(text='Livings 🛏', callback_data=ChoiceCallback(func="livings").pack())
+# categoryChoiceMenu.button(text='Sales 💵', callback_data=ChoiceCallback(func="sales").pack())
+# categoryChoiceMenu.button(text='Friends 🤼', callback_data=ChoiceCallback(func="friends").pack())
+# categoryChoiceMenu.button(text='Profile 👤', callback_data=ChoiceCallback(func="profile").pack())
+# categoryChoiceMenu.adjust(2, 2, 1)
+
 categoryChoiceMenu = InlineKeyboardBuilder()
-
-categoryChoiceMenu.button(text='Jobs 💻', callback_data=ChoiceCallback(func="jobs").pack())
-categoryChoiceMenu.button(text='Livings 🛏', callback_data=ChoiceCallback(func="livings").pack())
-categoryChoiceMenu.button(text='Sales 💵', callback_data=ChoiceCallback(func="sales").pack())
-categoryChoiceMenu.button(text='Friends 🤼', callback_data=ChoiceCallback(func="friends").pack())
-categoryChoiceMenu.button(text='Profile 👤', callback_data=ChoiceCallback(func="profile").pack())
+categoryChoiceMenu.button(text='Jobs 💻', callback_data=MenuCallback(menu="start_jobs").pack())
+categoryChoiceMenu.button(text='Livings 🛏', callback_data=MenuCallback(menu="start_livings").pack())
+categoryChoiceMenu.button(text='Sales 💵', callback_data=MenuCallback(menu="start_sales").pack())
+categoryChoiceMenu.button(text='Friends 🤼', callback_data=MenuCallback(menu="start_friends").pack())
+categoryChoiceMenu.button(text='Profile 👤', callback_data=MenuCallback(menu="start_profile").pack())
 categoryChoiceMenu.adjust(2, 2, 1)
-
-
-
-
 
 
 

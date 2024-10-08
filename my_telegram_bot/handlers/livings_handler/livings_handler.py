@@ -54,6 +54,11 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_livings(message: Message, state: FSMContext):
     await state.set_state(Livings.choice)
     await message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu)
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "start_livings"))
+async def start_livings_by_query(query: CallbackQuery, state: FSMContext):
+    await state.set_state(Livings.choice)
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu)
+
 
 @living_router.message(Living.description, Command("cancel", prefix=("!/")))
 @living_router.message(Living.price, Command("cancel", prefix=("!/")))

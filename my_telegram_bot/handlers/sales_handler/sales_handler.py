@@ -54,6 +54,10 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_sales(message: Message, state: FSMContext):
     await state.set_state(Sales.choice)
     await message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu)
+@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "start_sales"))
+async def start_sales_by_query(query: CallbackQuery, state: FSMContext):
+    await state.set_state(Sales.choice)
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu)
 
 # sales_filter = SaleItem.title | SaleItem.description | SaleItem.price | SaleItem.location
 @sales_router.message(SaleItem.title, Command("cancel", prefix=("!/")))

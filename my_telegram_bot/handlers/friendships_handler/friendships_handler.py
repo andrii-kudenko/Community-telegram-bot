@@ -79,6 +79,7 @@ update_funcitons_map = { # execute appropriate function depending on the city_se
 #         return user_data[user_id]['my_bio_id']
      
 
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "start_friends"))
 async def start_friends_query(query: CallbackQuery, state: FSMContext):
     await state.set_state(Friends.choice)
     text = markdown.text(
