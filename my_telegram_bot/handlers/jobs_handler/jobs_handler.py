@@ -81,13 +81,15 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 # --- COMMANDS ---
 @job_router.message(Command("jobs", prefix=("!/")))
 async def start_jobs(message: Message, state: FSMContext):
-    await state.set_state(Jobs.choice)
     await message.answer("Hi there! Choose the action:", reply_markup=nav.jobsReplyChoiceMenu.as_markup())
 @job_router.callback_query(nav.MenuCallback.filter(F.menu == "start_jobs"))
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "start_jobs"))
-async def start_jobs_by_query(query: CallbackQuery, state: FSMContext):
+async def start_jobs_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
     await query.answer("Jobs")
-    updated_keyboard = await nav.create_blank_keyboard("Jobs 💻")
+    if "menu" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("Jobs 💻")
+    else:
+        updated_keyboard = await nav.create_blank_keyboard("Back")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # await state.set_state(Jobs.choice)
     # await query.message.delete()
@@ -190,6 +192,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 # ---NEW POST---
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "post_ad"))
 async def new_job_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Creating new ad")
     updated_keyboard = await nav.create_blank_keyboard("Post an ad 📰")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     await query.message.answer("Creating your ad...\

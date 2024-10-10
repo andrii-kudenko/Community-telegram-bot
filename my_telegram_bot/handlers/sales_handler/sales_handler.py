@@ -52,14 +52,15 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 # --- COMMANDS ---
 @sales_router.message(Command("sales", prefix=("!/")))
 async def start_sales(message: Message, state: FSMContext):
-    await state.set_state(Sales.choice)
-    await message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu)
+    await message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu.as_markup())
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "start_sales"))
-async def start_sales_by_query(query: CallbackQuery, state: FSMContext):
-    await state.set_state(Sales.choice)
-    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu)
+async def start_sales_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
+    # await query.answer("Sales")
+    # updated_keyboard = await nav.create_blank_keyboard("Sales 💵")
+    # await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu.as_markup())
 
-# sales_filter = SaleItem.title | SaleItem.description | SaleItem.price | SaleItem.location
+
 @sales_router.message(SaleItem.title, Command("cancel", prefix=("!/")))
 @sales_router.message(SaleItem.description, Command("cancel", prefix=("!/")))
 @sales_router.message(SaleItem.price, Command("cancel", prefix=("!/")))
@@ -73,25 +74,37 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(Sales.choice)
     await message.answer(
         "Cancelled",
-        reply_markup=nav.salesChoiceMenu,
+        reply_markup=nav.salesChoiceMenu.as_markup(),
     )
     await set_default_commands(id=message.from_user.id)
 
 @sales_router.message(SaleItem.title, Command("back", prefix=("!/")))
 @sales_router.message(SaleItem.description, Command("back", prefix=("!/")))
+@sales_router.message(SaleItem.photo1, Command("back", prefix=("!/")))
+@sales_router.message(SaleItem.photo2, Command("back", prefix=("!/")))
+@sales_router.message(SaleItem.photo3, Command("back", prefix=("!/")))
 @sales_router.message(SaleItem.price, Command("back", prefix=("!/")))
 @sales_router.message(SaleItem.location, Command("back", prefix=("!/")))
 async def back_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state == SaleItem.title:
             await state.set_state(Sales.choice)
-            await message.answer("Choose action:", reply_markup=nav.salesChoiceMenu)
+            await message.answer("Choose action:", reply_markup=nav.salesChoiceMenu.as_markup())
     elif current_state == SaleItem.description:
             await state.set_state(SaleItem.title)
             await message.answer("Send me new title")
-    elif current_state == SaleItem.price:
+    elif current_state == SaleItem.photo1:
             await state.set_state(SaleItem.description)
             await message.answer("Send me new description")
+    elif current_state == SaleItem.photo2:
+            await state.set_state(SaleItem.photo1)
+            await message.answer("Send me another photo")
+    elif current_state == SaleItem.photo3:
+            await state.set_state(SaleItem.photo2)
+            await message.answer("Send me another photo")
+    elif current_state == SaleItem.price:
+            await state.set_state(SaleItem.photo3)
+            await message.answer("Send me another photo")
     elif current_state == SaleItem.location:
             await state.set_state(SaleItem.price)
             await message.answer("Send me new price")
@@ -99,37 +112,39 @@ async def back_handler(message: Message, state: FSMContext) -> None:
          pass
 
 
+
 # --- SEARCH ---
-@sales_router.message(Sales.choice, F.text == "Search 🔎")
-async def search_by_message(message: Message, state: FSMContext):
-    username = message.from_user.username
-    if username is None:
-        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
-        return
-    user_id = message.from_user.id
+@sales_router.callback_query(nav.SalesCallback.filter(F.action == "search"))
+async def search_by_query(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("Searching")
+    updated_keyboard = await nav.create_blank_keyboard("Search 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)  
     # database call
     async with SessionLocal() as session:
         await rq.update_my_sales_city_search(session, user_id, True)
-    await message.answer("Searching...", reply_markup=nav.nextMenu)
+    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Sales.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
         item, photos = await rq.get_next_item_with_city(session, user.items_search_id_list, user.city)
         if item:
             summary = await item_summary(item, photos)
-            await message.answer_media_group(media=summary)
+            await query.message.answer_media_group(media=summary)
             await rq.add_id_to_user_items_search_id_list(session, user.user_id, item.id)
             # updated = await rq.add_id_to_user_sales_jobs_search_id_list()
         elif item is None:
-            await message.answer("No more sales options", reply_markup=ReplyKeyboardRemove())
-            await message.answer("Would you like to search for sales options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
+            await query.message.answer("No more sales options", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("Would you like to search for sales options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
         else:
-            await message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
-            await message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
-@sales_router.callback_query(nav.MenuCallback.filter(F.menu == "sales_go_search_beyond"))
+            await query.message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
+@sales_router.callback_query(nav.SalesCallback.filter(F.action == "search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
-    await query.answer("Searching outside")
+    await query.answer("Searching beyond")
     user_id = query.from_user.id
+    updated_keyboard = await nav.create_blank_keyboard("Search beyond city 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         await rq.update_my_sales_city_search(session, user_id, False)
     await query.message.answer("Searching...", reply_markup=nav.nextMenu)
@@ -146,37 +161,34 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
 
 
+
 # --- MY POSTS ---
-@sales_router.message(Sales.choice, F.text == "View my sale ads 🧾")
-async def my_items_by_message(message: Message, state: FSMContext):
-    # make a database request
-    # and further manipulations
-    async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
-    await message.answer("My posts")
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "my_items"))
 async def my_items_by_query(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("My Ads")
+    updated_keyboard = await nav.create_blank_keyboard("View my sale ads🧾")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
+        print("new_job")
     await query.message.answer("My posts")
 
 
+
 # --- NEW ITEM ---
-@sales_router.message(Sales.choice, F.text == "Post an ad 📦")
-async def new_ad_by_message(message: Message, state: FSMContext):
-    username = message.from_user.username
-    if username is None:
-        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
-        return
-    await message.answer("Creating your ad...\
+@sales_router.callback_query(nav.SalesCallback.filter(F.action == "post_item"))
+async def new_ad_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Creating New Post")
+    updated_keyboard = await nav.create_blank_keyboard("Post item 📰")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    await query.message.answer("Creating your ad...\
                          \nMind that you can always \nGo /back or /cancel the process")                   
     await state.set_state(SaleItem.title)
-    await message.answer("Type the title for your ad:", reply_markup=ReplyKeyboardRemove())
-    await set_back_commands(id=message.from_user.id)
+    await query.message.answer("Type the title for your ad:")
+    await set_back_commands(id=query.from_user.id)
+
 
 
 # --- ITEM CREATION ---
@@ -250,7 +262,7 @@ async def ad_location(message: Message, state: FSMContext):
         print("Sale item created successfully")
 
     await state.set_state(Sales.choice)
-    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.salesReplyChoiceMenu)
+    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.salesReplyChoiceMenu.as_markup())
     await set_default_commands(id=message.from_user.id)
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
     title = data["title"]
@@ -279,6 +291,8 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     media[-1].caption = summary
     await message.answer("New Sale Item", reply_markup=ReplyKeyboardRemove())
     await message.answer_media_group(media=media)
+
+
 
 
 # --- NEXT ---

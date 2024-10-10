@@ -1,10 +1,12 @@
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from bot_info import set_back_commands, set_default_commands
 import markups.markups as nav
 from handlers.friendships_handler.friendships_markup import MenuCallback as friendsMenuCallback
 from handlers.jobs_handler.jobs_markup import MenuCallback as jobsMenuCallback
+from handlers.sales_handler.sales_handler import start_sales_by_query
 
 home_router = Router(name=__name__)
 
@@ -23,6 +25,19 @@ async def home(message: Message) -> None:
     # await message.edit_text(inline_message_id=my_message.message_id, text="Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
     # await message.answer("Choose a category:", reply_markup=nav.categoryChoiceMenu.as_markup())
     await set_default_commands(id=message.from_user.id)
+@home_router.callback_query(nav.MenuCallback.filter(F.menu == "start_sales"))
+async def sales_middleware(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
+    await query.answer("Sales")
+    updated_keyboard = await nav.create_blank_keyboard("Sales 💵")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    username = query.from_user.username
+    if username is None:
+        await query.message.answer("You need to have a username for this section. \nGo to telegram settings and add a username")
+        await home(query.message)
+    else:
+        await start_sales_by_query(query, state)
+
+
 
 @home_router.callback_query(friendsMenuCallback.filter(F.menu == "home"))
 @home_router.callback_query(jobsMenuCallback.filter(F.menu == "home"))

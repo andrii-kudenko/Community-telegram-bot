@@ -79,31 +79,20 @@ update_funcitons_map = { # execute appropriate function depending on the city_se
 #         return user_data[user_id]['my_bio_id']
      
 
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "start_friends"))
-async def start_friends_query(query: CallbackQuery, state: FSMContext):
-    await state.set_state(Friends.choice)
-    text = markdown.text(
-        markdown.hbold('Friends Finder\n'),
-        markdown.text('Choose action IN START FRIENDS:'),
-    )
-    await query.message.answer(text, reply_markup=nav.friendsReplyChoiceMenu)
-
-
 # --- COMMANDS ---
 @friendship_router.message(Command("friends", prefix=("!/")))
-async def start_friends(message: Message, state: FSMContext):
-    await state.set_state(Friends.choice)
-    await message.answer(markdown.text(
-        markdown.text('Do you really want to conact me?\n'),
-        markdown.hlink('-> This is me', 'https://t.me/kristoforik27')))
-    print(message.from_user.id)
-    print(message.from_user.full_name)
-    print(message.from_user.username)
-    text = markdown.text(
-        markdown.hbold('Friends Finder\n'),
-        markdown.text('Choose the action:'),
-    )
-    await message.answer(text, reply_markup=nav.friendsReplyChoiceMenu)
+async def start_friends(message: Message, state: FSMContext):    
+    await message.answer("Hi there! Choose the action:", reply_markup=nav.friendsReplyChoiceMenu.as_markup())
+@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "start_friends"))
+async def start_friends_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
+    await query.answer("Friends")
+    updated_keyboard = await nav.create_blank_keyboard("Friends 🤼")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.friendsReplyChoiceMenu.as_markup())
+
+
+
 @friendship_router.message(Bio.name, Command("cancel", prefix=("!/")))
 @friendship_router.message(Bio.age, Command("cancel", prefix=("!/")))
 @friendship_router.message(Bio.bio, Command("cancel", prefix=("!/")))
@@ -120,7 +109,7 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(Friends.choice)
     await message.answer(
         "Cancelled. Choose the action:",
-        reply_markup=nav.friendsReplyChoiceMenu,
+        reply_markup=nav.friendsReplyChoiceMenu.as_markup(),
     )
     await set_default_commands(id=message.from_user.id)
 @friendship_router.message(Bio.name, Command("back", prefix=("!/")))
@@ -134,7 +123,7 @@ async def back_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state == Bio.name:
             await state.set_state(Friends.choice)
-            await message.answer("Choose action:", reply_markup=nav.friendsReplyChoiceMenu)
+            await message.answer("Hi there! Choose the action:", reply_markup=nav.friendsReplyChoiceMenu.as_markup())
     elif current_state == Bio.age:
             await state.set_state(Bio.name)
             await message.answer("Send me your name")
@@ -155,70 +144,14 @@ async def back_handler(message: Message, state: FSMContext) -> None:
             await message.answer("Send me another photo")
 
 
+
 # --- SEARCH ---
-@friendship_router.message(Friends.choice, F.text == "Search 🔎")
-@friendship_router.message(Friends.bio_overview, F.text == "Search 🔎")
-async def search_by_message(message: Message, state: FSMContext):
-    user_id = message.from_user.id
-    # my_bio: Bio
-    async with SessionLocal() as session: # Check if my bio exists
-        print(message.from_user.id)
-        my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
-        print('My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
-        if my_bio:
-            print("IN BIO")
-            await rq.update_my_city_search(session, my_bio.id, True)
-            # set_my_bio_id(message.from_user.id, my_bio.id)
-            
-        else:
-            print("NOT BIO")
-            # set_my_bio_id(message.from_user.id, -1)
-            await message.answer("You do not have a profile for this app. Let's create one")
-            await new_bio_by_message(message, state)
-            return
-    # with lock:
-    #      if user_id not in user_data:
-    #           user_data[user_id] = {'search_id': 0}
-    await message.answer("Searching...", reply_markup=nav.likeMenu)
-    await state.set_state(Friends.searching)
-    # my_bio_id = get_my_bio_id(user_id)
-    # print(my_bio_id)
-    # search_id = get_user_data(user_id)['search_id']
-    # async with SessionLocal() as session: # Get my bio_id and my search_id
-    #     my_bio_id, search_id, my_city = await rq.get_my_bio_id_search_id_city(session, user_id)
-    #     await message.answer(f'Bio: {my_bio.id} Search: {my_bio.search_id}')
-    async with SessionLocal() as session: # Get next bio
-        my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
-        bio, photos = await rq.get_next_bio_by_id_with_city(session, my_bio.search_id, my_bio.id, my_bio.profile_city)
-        if bio:
-            # new_search = set_user_search_id(message.from_user.id, bio.id)
-            print('NEW SEARCH ID', bio.id, 'MY BIO ID', my_bio.id)
-            print(bio.id, bio.profile_name)
-            summary = markdown.text(
-            markdown.hbold(f'{bio.profile_name}'),
-            markdown.hunderline(f'{bio.profile_age}\n'),
-            markdown.hitalic(f'{bio.profile_bio}'),
-            markdown.hblockquote(f'{bio.profile_city}')
-            )
-            media = []
-            for photo in photos:
-                media.append(InputMediaPhoto(media=photo.photo_id))
-            media[-1].caption = summary
-            await message.answer_media_group(media=media)
-            updated = await rq.update_my_search_id(session, my_bio.id, bio.id)
-            print('UPDATED', updated)
-        elif bio is None:
-            await message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
-            await message.answer("Would you like to search beyond your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
-            return        
-        else:
-            await message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
-            await message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search"))
+@friendship_router.callback_query(nav.FriendsCallback.filter(F.action == "search"))
 async def search_by_query(query: CallbackQuery, state: FSMContext):
-    await query.answer("Searching")
     user_id = query.from_user.id
-    # my_bio: Bio
+    await query.answer("Searching")
+    updated_keyboard = await nav.create_blank_keyboard("Search 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session: # Check if my bio exists
         print(query.message.from_user.id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
@@ -226,32 +159,18 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
         if my_bio:
             print("IN BIO")
             await rq.update_my_city_search(session, my_bio.id, True)
-            # set_my_bio_id(user_id, my_bio.id)
         else:
             print("NOT BIO")
-            # set_my_bio_id(user_id, -1)
             await query.answer("No Bio")
             await query.message.answer("You do not have a profile for this app. Let's create one")
             await new_bio_by_query(query, state)
-            return
-    # with lock:
-    #      if user_id not in user_data:
-    #           user_data[user_id] = {'search_id': 0}
+            
     await query.message.answer("Searching...", reply_markup=nav.likeMenu)
     await state.set_state(Friends.searching)
-    # my_bio_id = get_my_bio_id(user_id)
-    # print(my_bio_id)
-    # search_id = get_user_data(user_id)['search_id']
-    # async with SessionLocal() as session: # Get my bio_id and my search_id
-    #     my_bio_id, search_id, my_city = await rq.get_my_bio_id_search_id_city(session, user_id)
     async with SessionLocal() as session: # Get next bio
-        # bio, photos = await rq.get_next_bio_by_id(session, search_id, my_bio_id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
         bio, photos = await rq.get_next_bio_by_id_with_city(session, my_bio.search_id, my_bio.id, my_bio.profile_city)
         if bio:
-            # new_search = set_user_search_id(user_id, bio.id)
-            
-            # print(new_search)
             print(bio.id, bio.profile_name)
             summary = markdown.text(
             markdown.hbold(f'{bio.profile_name}'),
@@ -260,7 +179,6 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             markdown.hblockquote(f'{bio.profile_city}')
             )
             media = []
-            # media = [InputMediaPhoto(media=photos[0].photo_id)]
             for photo in photos:
                 media.append(InputMediaPhoto(media=photo.photo_id))
             media[-1].caption = summary
@@ -271,15 +189,16 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("Would you like to search beyond your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
             return
-
         else:
              await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
              await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "friendships_go_search_beyond"))
+
+@friendship_router.callback_query(nav.FriendsCallback.filter(F.action == "search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
-    await query.answer("Searching beyond")
     user_id = query.from_user.id
-    # my_bio: Bio
+    await query.answer("Searching beyond")
+    updated_keyboard = await nav.create_blank_keyboard("Search beyond city 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session: # Check if my bio exists
         print(query.message.from_user.id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
@@ -292,16 +211,10 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.answer("No Bio")
             await query.message.answer("You do not have a profile for this app. Let's create one")
             await new_bio_by_query(query, state)
-            return
+            
     await query.message.answer("Searching...", reply_markup=nav.likeMenu)
     await state.set_state(Friends.searching)
-    # my_bio_id = get_my_bio_id(user_id)
-    # print(my_bio_id)
-    # search_id = get_user_data(user_id)['search_id']
-    # async with SessionLocal() as session: # Get my bio_id and my search_id
-    #     my_bio_id, search_id, my_city = await rq.get_my_bio_id_search_id_city(session, user_id)
     async with SessionLocal() as session: # Get next bio
-        # bio, photos = await rq.get_next_bio_by_id(session, search_id, my_bio_id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
         bio, photos = await rq.get_next_bio_by_id_without_city(session, my_bio.beyond_city_search_id, my_bio.id, my_bio.profile_city)
         if bio:
@@ -313,7 +226,6 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             markdown.hblockquote(f'{bio.profile_city}')
             )
             media = []
-            # media = [InputMediaPhoto(media=photos[0].photo_id)]
             for photo in photos:
                 media.append(InputMediaPhoto(media=photo.photo_id))
             media[-1].caption = summary
@@ -328,16 +240,14 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
 # --- MY BIO ---
 @friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "my_bio"))
 async def my_bio_by_query(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("My Bio")
     await state.set_state(Friends.bio_overview)
+    updated_keyboard = await nav.create_blank_keyboard("My Bio 👤")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
-        my_bio, photos = await rq.get_my_bio_by_user_id(session, query.from_user.id)
+        my_bio, photos = await rq.get_my_bio_by_user_id(session, user_id)
         if my_bio:
-            await query.answer("My Bio")
-            # summary = text(
-            #     text(f"{html.bold('User Information:\n')}"),
-            #     text(f"{html.bold('Name:')} {my_bio.profile_name}\n"),
-            #     text(f"{html.bold('Bio:')} {html.italic(my_bio.profile_bio)}\n"),
-            #     text(f"{html.bold('Age:')} {html.code(my_bio.profile_age)}"),)
             summary = markdown.text(
                 markdown.hbold(f'{my_bio.profile_name}'),
                 markdown.hunderline(f'{my_bio.profile_age} - '),
@@ -345,68 +255,30 @@ async def my_bio_by_query(query: CallbackQuery, state: FSMContext):
                 markdown.hblockquote(f'{my_bio.profile_city}')
             )
             media = []
-            # media = [InputMediaPhoto(media=photos[0].photo_id)]
             if photos:
                 for photo in photos:
                     media.append(InputMediaPhoto(media=photo.photo_id))
                 media[-1].caption = summary
             last_message = await query.message.answer_media_group(media=media)
-            await query.message.edit_text("My bio")
+            # await query.message.a("My bio")
             await last_message[-1].answer(text="Choose action", reply_markup=nav.bioChangeMenu.as_markup())
             # await query.message.edit_text(text=summary, reply_markup=nav.bioChangeMenu.as_markup())
         else:
             await query.answer("No Bio")
             await query.message.edit_text("You do not have a profile for this app. Let's create one")
             await new_bio_by_query(query, state)
-            return
-@friendship_router.message(Friends.choice, F.text == "My Bio 👤")            
-async def my_bio_by_message(message: Message, state: FSMContext):
-    await state.set_state(Friends.bio_overview)
-    async with SessionLocal() as session:
-        my_bio, photos = await rq.get_my_bio_by_user_id(session, message.from_user.id)
-        if my_bio:
-            await message.answer("My Bio", reply_markup=ReplyKeyboardRemove())
-            summary = markdown.text(
-                markdown.hbold(f'{my_bio.profile_name}'),
-                markdown.hunderline(f'{my_bio.profile_age} - '),
-                markdown.hitalic(f'{my_bio.profile_bio}'),
-                markdown.hblockquote(f'{my_bio.profile_city}')
-            )
-            media = []
-            # media = [InputMediaPhoto(media=photos[0].photo_id)]
-            if photos:    
-                for photo in photos:
-                    media.append(InputMediaPhoto(media=photo.photo_id))
-                media[-1].caption = summary
-                last_message = await message.answer_media_group(media=media)
-                await last_message[-1].answer(text="Choose action", reply_markup=nav.bioChangeMenu.as_markup())
-            else:
-                await message.answer("HElo", reply_markup=nav.bioChangeMenu.as_markup())
-            # await message.answer(text=summary, reply_markup=nav.bioReplyChoiceMenu)
-        else:
-            await message.answer("No Bio")
-            await message.answer("You do not have a profile for this app. Let's create one")
-            await new_bio_by_message(message, state)
-            return
-        
 
 # --- NEW BIO ---
-@friendship_router.callback_query(nav.MenuCallback.filter(F.menu == "new_bio"))
+@friendship_router.callback_query(nav.FriendsCallback.filter(F.action == "new_bio"))
 async def new_bio_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Creating New Bio")
-    await query.message.edit_text("Creating your profile...\
+    updated_keyboard = await nav.create_blank_keyboard("New Bio 👤")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    await query.message.answer("Creating your profile...\
                          \nMind that you can always \nGo /back or /cancel the process")
     await state.set_state(Bio.name)
-    await query.message.answer("Type your name:", reply_markup=ReplyKeyboardRemove())
+    await query.message.answer("Type your name:")
     await set_back_commands(id=query.from_user.id)
-@friendship_router.message(Friends.bio_overview, F.text == "New Bio 👤")
-async def new_bio_by_message(message: Message, state: FSMContext):
-    await message.answer("Creating your profile...\
-                         \nMind that you can always \nGo /back or /cancel the process")
-    await state.set_state(Bio.name)
-    await message.answer("Type your name:", reply_markup=ReplyKeyboardRemove())
-    await set_back_commands(id=message.from_user.id)
-
 
 # --- BIO CREATION ---
 @friendship_router.message(Bio.name, F.text)
@@ -461,25 +333,19 @@ async def profile_location(message: Message, state: FSMContext):
         data = await state.update_data(location=message.text)
         new_bio = NewBio(False, message.from_user.id, data["name"], data["bio"], data["age"], message.text)
     await state.clear()
-    
     await show_summary(message=message, data=data)
     async with SessionLocal() as session:  
         photos = []
         photos.append(data["photo1"])
-        # if data["photo2"]:
-        #     photos.append(data["photo2"])
         photos.append(data.get("photo2")) if data.get("photo2") else None
         photos.append(data.get("photo3")) if data.get("photo3") else None
-        # await rq.add_bio_to_user_by_id(session, message.from_user.id, data["name"], 
-        #                             data["bio"], int(data["age"]), str(message.location.latitude), str(message.location.longitude))
         my_new_bio = await rq.add_bio_to_user_by_id(session, new_bio, photos)
-        # await rq.remove_existing_photos(session, new_bio)
-        # await rq.add_photos_to_bio(session, new_bio.id, data["photos"])
         print("Bio added successfully")
-    
     await state.set_state(Friends.choice)
-    await message.answer("Cool, now go search for new connections!", reply_markup=nav.friendsReplyChoiceMenu)
+    await message.answer("Cool, now go search for new connections!", reply_markup=nav.friendsReplyChoiceMenu.as_markup())
     await set_default_commands(id=message.from_user.id)
+
+
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
     name = data["name"]
     bio = data["bio"]
@@ -508,11 +374,9 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
 @friendship_router.message(Friends.searching, F.text == "👍")
 async def searching_like(message: Message, state: FSMContext):
     user_id = message.from_user.id
-    # my_bio: Bio
     async with SessionLocal() as session: # Get my bio_id and my search_id
-        # my_bio_id, search_id, my_city = await rq.get_my_bio_id_search_id_city(session, user_id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
-        await message.answer(f'Bio: {my_bio.id} Search: {my_bio.search_id}')
+        # await message.answer(f'Bio: {my_bio.id} Search: {my_bio.search_id}')
         print('My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
     async with SessionLocal() as session: # Check for a match, with further functionalities
         print('IN MATCH My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
@@ -536,14 +400,11 @@ async def searching_like(message: Message, state: FSMContext):
                 markdown.text("\bGo start conversation with 👉🏼"),
                 markdown.hlink(f'{my_profile.profile_name} 💬', f'https://t.me/{my_profile_username}')
             ), link_preview_options=LinkPreviewOptions(is_disabled=True))
-            # await message.answer("Next profiles...")
     async with SessionLocal() as session: # Update search_id, continue with next bio
         print('IN SEARCH My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
-        # bio, photos = await rq.get_next_bio_by_id(session, my_bio.search_id, my_bio.id)
         target_search_id = my_bio.search_id if my_bio.city_search else my_bio.beyond_city_search_id
         bio, photos = await search_funcitons_map[my_bio.city_search](session, target_search_id, my_bio.id, my_bio.profile_city)
         print('IN SEARCH My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
-
         if bio: # make inputs for photos
             print(bio.id, bio.profile_name)
             summary = markdown.text(
@@ -553,7 +414,6 @@ async def searching_like(message: Message, state: FSMContext):
             markdown.hblockquote(f'{bio.profile_city}')
             )
             media = []
-            # media = [InputMediaPhoto(media=photos[0].photo_id)]
             for photo in photos:
                 media.append(InputMediaPhoto(media=photo.photo_id))
             media[-1].caption = summary
@@ -574,16 +434,12 @@ async def searching_like(message: Message, state: FSMContext):
 async def searching_dislike(message: Message, state: FSMContext):
     user_id = message.from_user.id
     async with SessionLocal() as session: # Get my bio_id and my search_id
-        # my_bio_id, search_id, my_city = await rq.get_my_bio_id_search_id_city(session, user_id)
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
         print('My bio id:', my_bio.id, 'Search id:', my_bio.search_id)
     async with SessionLocal() as session: # Update search_id, continue with next bio
-        # make like request to a database, check for a match
         target_search_id = my_bio.search_id if my_bio.city_search else my_bio.beyond_city_search_id
         bio, photos = await search_funcitons_map[my_bio.city_search](session, target_search_id, my_bio.id, my_bio.profile_city)
         if bio:
-            # new_search = set_user_search_id(message.from_user.id, bio.id)
-            # print(new_search)
             print(bio.id, bio.profile_name)
             summary = markdown.text(
             markdown.hbold(f'{bio.profile_name}'),
@@ -610,23 +466,6 @@ async def searching_dislike(message: Message, state: FSMContext):
              await message.answer("Now you can chill and wait until someone finds your profile interesting", reply_markup=nav.homeChoiceMenu.as_markup())
 
 
-# ---SHOW MATHCES---
-# @friendship_router.message(nav.MenuCallback.filter(F.menu == "liked_by_someone"))
-# async def show_a_match(query: CallbackQuery):
-#     my_bio_id = get_my_bio_id(query.from_user.id)
-#     query.answer("Match")
-#     async with SessionLocal() as session:
-#         matched_profile = await rq.get_match_for_bio(session, my_bio_id)
-#         matched_profile_info = await bot.get_chat(matched_profile.user_id)
-#         matched_profile_username = matched_profile_info.username
-#         # profile = await profile_summary(matched_profile, photos)
-#         # await query.message.answer_media_group(media=profile)
-#         await query.message.answer(markdown.text(
-#             markdown.text('Go and start conversation with 👉🏼'),
-#             markdown.hlink(f'{matched_profile.profile_name} 💬', f'https://t.me/{matched_profile_username}')
-#         ), link_preview_options=LinkPreviewOptions(is_disabled=True))
-
-
 # --- HELPER FUNCTIONS ---
 async def profile_summary(bio, photos):
     summary = markdown.text(
@@ -641,6 +480,7 @@ async def profile_summary(bio, photos):
         media.append(InputMediaPhoto(media=photo.photo_id))
     media[-1].caption = summary
     return media
+
 
 
 # --- ERROR HANDLING --- 

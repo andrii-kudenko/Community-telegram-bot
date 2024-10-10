@@ -2,12 +2,30 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
+
+# --- MENUS ---
+class MenuCallback(CallbackData, prefix="navigation"):
+    menu: str
+
+class FriendsCallback(CallbackData, prefix="frineds"):
+    action: str
+
+class BlankCallback(CallbackData, prefix="empty"):
+    text: str
+
 # --- SEARCH ---
-btnSearch = KeyboardButton(text='Search 🔎')
-btnBio = KeyboardButton(text='My Bio 👤')
-friendsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnBio]])
-btnNewBio = KeyboardButton(text='New Bio 👤')
-bioReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnNewBio]])
+# btnSearch = KeyboardButton(text='Search 🔎')
+# btnBio = KeyboardButton(text='My Bio 👤')
+# friendsReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnBio]])
+# btnNewBio = KeyboardButton(text='New Bio 👤')
+# bioReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnNewBio]])
+friendsReplyChoiceMenu = InlineKeyboardBuilder()
+friendsReplyChoiceMenu.button(text="Search 🔎", callback_data=FriendsCallback(action="search").pack())
+friendsReplyChoiceMenu.button(text="My Bio 👤", callback_data=MenuCallback(menu="my_bio").pack())
+friendsReplyChoiceMenu.button(text="Something", callback_data=FriendsCallback(action="something").pack())
+friendsReplyChoiceMenu.adjust(2)
+
+
 
 btnLike = KeyboardButton(text='👍')
 btnDisLike = KeyboardButton(text='👎')
@@ -26,9 +44,7 @@ btnLocation = KeyboardButton(text='Provide Location', request_location=True)
 locationMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnLocation]])
 
 
-# --- MENUS ---
-class MenuCallback(CallbackData, prefix="navigation"):
-    menu: str
+
 
 homeChoiceMenu = InlineKeyboardBuilder() # When there are no more profiles to look
 homeChoiceMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
@@ -37,13 +53,18 @@ homeChoiceMenu.adjust(2,1)
 
 bioChangeMenu = InlineKeyboardBuilder() 
 bioChangeMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
-bioChangeMenu.button(text='New Bio 👤', callback_data=MenuCallback(menu="new_bio").pack())
-bioChangeMenu.button(text='Search 🔎', callback_data=MenuCallback(menu="friendships_go_search").pack())
+bioChangeMenu.button(text='New Bio 👤', callback_data=FriendsCallback(action="new_bio").pack())
+bioChangeMenu.button(text='Search 🔎', callback_data=FriendsCallback(action="search").pack())
 
 askToSearchBeyondMenu = InlineKeyboardBuilder() 
 askToSearchBeyondMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
-askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=MenuCallback(menu="friendships_go_search_beyond").pack())
+askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=FriendsCallback(action="search_beyond").pack())
 
 # NOT USED
 showUserMenu = InlineKeyboardBuilder() 
 showUserMenu.button(text='👀', callback_data=MenuCallback(menu="liked_by_someone").pack())
+
+async def create_blank_keyboard(text):
+    blankMenu = InlineKeyboardBuilder()
+    blankMenu.button(text=f"{text}", callback_data=BlankCallback(text=f"{text}").pack())
+    return blankMenu.as_markup()

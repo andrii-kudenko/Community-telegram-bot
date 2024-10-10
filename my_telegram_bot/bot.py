@@ -19,7 +19,7 @@ from aiogram.fsm.context import FSMContext
 import markups.markups as nav
 import random
 # from handlers.message_handler import message_router
-from handlers.friendships_handler.friendships_handler import friendship_router, start_friends_query
+from handlers.friendships_handler.friendships_handler import friendship_router, start_friends_by_query
 # from my_telegram_bot.handlers.friendships_handler.friendships_handler import friendship_router, start_friends_query
 from handlers.sales_handler.sales_handler import sales_router, start_sales
 # from my_telegram_bot.handlers.sales_handler.sales_handler import sales_router, start_sales
@@ -84,7 +84,7 @@ async def choice_query(query: CallbackQuery, callback_data: nav.ChoiceCallback, 
     if callback_data.func == "friends":
         await query.answer("Friends Finder")
         await query.message.edit_text("Friends 🤼")
-        await start_friends_query(query, state)
+        await start_friends_by_query(query, state)
     if callback_data.func == "profile":
         await query.answer("Profile")
         await query.message.edit_text("Profile 👤")

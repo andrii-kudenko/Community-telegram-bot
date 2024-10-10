@@ -8,6 +8,9 @@ class ChoiceCallback(CallbackData, prefix="choice"):
 class MenuCallback(CallbackData, prefix="navigation"):
     menu: str
 
+class BlankCallback(CallbackData, prefix="empty"):
+    text: str
+
 # categoryChoiceMenu = InlineKeyboardBuilder()
 # categoryChoiceMenu.button(text='Jobs 💻', callback_data=ChoiceCallback(func="jobs").pack())
 # categoryChoiceMenu.button(text='Livings 🛏', callback_data=ChoiceCallback(func="livings").pack())
@@ -60,3 +63,8 @@ categoryChoiceMenu.adjust(2, 2, 1)
 btnPost = InlineKeyboardButton(text='Post', callback_data="post")
 btnSearch = InlineKeyboardButton(text='Search ->', callback_data="search")
 methodChoiceMenu = InlineKeyboardMarkup(inline_keyboard=[[btnPost], [btnSearch]])
+
+async def create_blank_keyboard(text):
+    blankMenu = InlineKeyboardBuilder()
+    blankMenu.button(text=f"{text}", callback_data=BlankCallback(text=f"{text}").pack())
+    return blankMenu.as_markup()
