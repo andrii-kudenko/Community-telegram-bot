@@ -7,7 +7,9 @@ class MenuCallback(CallbackData, prefix="navigation"):
     menu: str
 
 class SalesCallback(CallbackData, prefix="sales"):
+    id: str
     action: str
+    additional: str
 
 class BlankCallback(CallbackData, prefix="empty"):
     text: str
@@ -18,8 +20,8 @@ class BlankCallback(CallbackData, prefix="empty"):
 # btnMyPosts = KeyboardButton(text='View my sale ads🧾')
 # salesReplyChoiceMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSearch], [btnPost], [btnMyPosts]])
 salesReplyChoiceMenu = InlineKeyboardBuilder()
-salesReplyChoiceMenu.button(text="Search 🔎", callback_data=SalesCallback(action="search").pack())
-salesReplyChoiceMenu.button(text="Post an ad 📦", callback_data=SalesCallback(action="post_item").pack())
+salesReplyChoiceMenu.button(text="Search 🔎", callback_data=SalesCallback(id="0", action="search", additional="").pack())
+salesReplyChoiceMenu.button(text="Post an ad 📦", callback_data=SalesCallback(id="0", action="post_item", additional="").pack())
 salesReplyChoiceMenu.button(text="View my sale ads🧾", callback_data=MenuCallback(menu="my_items").pack())
 
 btnNext = KeyboardButton(text='Next ➡️')
@@ -42,13 +44,13 @@ locationMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnLocation]
 
 salesChoiceMenu = InlineKeyboardBuilder() # When there are no more profiles to look
 salesChoiceMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
-salesChoiceMenu.button(text='Post item 📰', callback_data=SalesCallback(action="post_item").pack())
+salesChoiceMenu.button(text='Post item 📰', callback_data=SalesCallback(id="0", action="post_item", additional="").pack())
 salesChoiceMenu.button(text='My items', callback_data=MenuCallback(menu="my_items").pack())
-salesChoiceMenu.adjust(2,1)
+salesChoiceMenu.adjust(2)
 
 askToSearchBeyondMenu = InlineKeyboardBuilder() 
 askToSearchBeyondMenu.button(text='Go home 🏠', callback_data=MenuCallback(menu="home").pack())
-askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=SalesCallback(action="search_beyond").pack())
+askToSearchBeyondMenu.button(text='Search beyond city 🔎', callback_data=SalesCallback(id="0", action="search_beyond", additional="").pack())
 
 async def create_blank_keyboard(text):
     blankMenu = InlineKeyboardBuilder()

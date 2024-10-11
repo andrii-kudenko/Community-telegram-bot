@@ -6,8 +6,11 @@ from aiogram.filters.callback_data import CallbackData
 
 class MenuCallback(CallbackData, prefix="navigation"):
     menu: str
-class ResumeCallback(CallbackData, prefix="navigation"):
+class ResumeCallback(CallbackData, prefix="resume"):
     action: str
+class BlankCallback(CallbackData, prefix="empty"):
+    text: str
+
 
 choiceMenu = InlineKeyboardBuilder()
 choiceMenu.button(text="My bio", callback_data=MenuCallback(menu="my_bio").pack())
@@ -161,3 +164,8 @@ async def create_single_applicant_keyboard(applicant_id, job_id):
     applicantMenu.button(text="Next", callback_data=ApplicantsCallback(id=str(applicant_id), job_id=str(job_id), action="next").pack())
     applicantMenu.adjust(2)
     return applicantMenu.as_markup()
+
+async def create_blank_keyboard(text):
+    blankMenu = InlineKeyboardBuilder()
+    blankMenu.button(text=f"{text}", callback_data=BlankCallback(text=f"{text}").pack())
+    return blankMenu.as_markup()

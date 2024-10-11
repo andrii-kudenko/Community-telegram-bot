@@ -41,17 +41,21 @@ async def start_profile(message: Message, state: FSMContext):
 @profile_router.callback_query(nav.MenuCallback.filter(F.menu == "start_profile"))
 @profile_router.callback_query(nav.ResumeCallback.filter(F.action == "leave"))
 async def start_profile_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Profile")
+    updated_keyboard = await nav.create_blank_keyboard("Profile 👤")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # await query.answer("Jobs")
     # await state.set_state(Jobs.choice)
     # await query.message.delete()
-    await query.answer("Profile")
-    await query.message.edit_text("Hi there! Choose the action:", reply_markup=nav.choiceMenu.as_markup())
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.choiceMenu.as_markup())
 
 
 @profile_router.callback_query(nav.MenuCallback.filter(F.menu == "my_resume_editor"))
 async def my_resume_editor_by_query(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("My Resume")
+    updated_keyboard = await nav.create_blank_keyboard("My Resume")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # await query.answer("My Resume")
     # await state.set_state(Jobs.choice)
     # await query.message.delete()
@@ -61,19 +65,19 @@ async def my_resume_editor_by_query(query: CallbackQuery, state: FSMContext):
         if my_resume:
             keyboard = await nav.create_my_resume_keyboard(my_resume)
             # summary = await resume_summary(my_resume)
-            await query.message.edit_text(text="Resume", reply_markup=keyboard) 
+            await query.message.answer(text="Resume editor", reply_markup=keyboard) 
         else:
-            await query.message.edit_text("You do not have a resume yet, do you want to create one?", reply_markup=nav.createResumeMenu.as_markup())
+            await query.message.answer("You do not have a resume yet, do you want to create one?", reply_markup=nav.createResumeMenu.as_markup())
     # await query.message.edit_text("Resume:", reply_markup=nav.choiceMenu.as_markup())
 async def my_resume_editor_by_messsage(message: Message, state: FSMContext):
     # user_id = message.from_user.id
     print("MESSAGE", message)
     async with SessionLocal() as session:
-        my_resume = await rq.get_my_resume(session, 539444135)
+        my_resume = await rq.get_my_resume(session, message.from_user.id)
         if my_resume:
             keyboard = await nav.create_my_resume_keyboard(my_resume)
             # summary = await resume_summary(my_resume)
-            await message.answer(text="Resume", reply_markup=keyboard) 
+            await message.answer(text="Resume editor", reply_markup=keyboard) 
         else:
             await message.answer("Error")
 
@@ -81,10 +85,12 @@ async def my_resume_editor_by_messsage(message: Message, state: FSMContext):
 async def create_resume(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("Resume creation")
+    updated_keyboard = await nav.create_blank_keyboard("Create")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         created_resume = await rq.create_resume(session, user_id)
         if created_resume:
-            await query.message.edit_text("Resume created")
+            await query.message.answer("Resume created")
             await my_resume_editor_by_messsage(query.message, state)
         else:
             await query.message.answer("Error")
@@ -94,15 +100,17 @@ async def create_resume(query: CallbackQuery, state: FSMContext):
 async def my_resume(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("Resume")
+    updated_keyboard = await nav.create_blank_keyboard("My Resume")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         my_resume = await rq.get_my_resume(session, user_id)
         print("RESUME ", my_resume.full_name, my_resume.email_address, my_resume.additional_information)
         if not my_resume.full_name or not my_resume.email_address or not my_resume.additional_information:
-            await query.message.edit_text("Resume is incomplete. Try adding required* information to complete your resume")
+            await query.message.answer("Resume is incomplete. Try adding required* information to complete your resume")
             await my_resume_editor_by_messsage(query.message, state)
         elif my_resume:
             summary = await resume_summary(my_resume)
-            await query.message.edit_text(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.myResumeMenu.as_markup())
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.myResumeMenu.as_markup())
         else:
             await query.message.answer("Error")
 
@@ -110,6 +118,7 @@ async def my_resume(query: CallbackQuery, state: FSMContext):
 @profile_router.callback_query(nav.ResumeCallback.filter())
 async def handle_job_field_edit_callback(query: CallbackQuery, callback_data: nav.ResumeCallback, state: FSMContext):
     user_id = query.from_user.id
+    
     # job_id = int(callback_data.id)
     # await state.set_state(JobEdit.job_id)
     # await state.update_data(job_id=job_id)
@@ -118,32 +127,50 @@ async def handle_job_field_edit_callback(query: CallbackQuery, callback_data: na
     await query.answer(f"{callback_data.action.capitalize()}")
     match callback_data.action:
         case "full_name":
+            updated_keyboard = await nav.create_blank_keyboard("full name")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.full_name)
-            await query.message.edit_text("Provide full name")
+            await query.message.answer("Provide full name")
         case "email_address":
+            updated_keyboard = await nav.create_blank_keyboard("email address")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.email_address)
-            await query.message.edit_text("Provide email address")
+            await query.message.answer("Provide email address")
         case "phone_number":
+            updated_keyboard = await nav.create_blank_keyboard("phone number")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.phone_number)
-            await query.message.edit_text("Provide phone number")
+            await query.message.answer("Provide phone number")
         case "location":
+            updated_keyboard = await nav.create_blank_keyboard("location")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.location)
-            await query.message.edit_text("Provide location")
+            await query.message.answer("Provide location")
         case "work_experience":
+            updated_keyboard = await nav.create_blank_keyboard("work experience")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.work_experience)
-            await query.message.edit_text("Provide work experience")
+            await query.message.answer("Provide work experience")
         case "degree_description":
+            updated_keyboard = await nav.create_blank_keyboard("degree description")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.degree_description)
-            await query.message.edit_text("Provide degree description")
+            await query.message.answer("Provide degree description")
         case "skills":
+            updated_keyboard = await nav.create_blank_keyboard("skills")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.skills)
-            await query.message.edit_text("Provide skills")
+            await query.message.answer("Provide skills")
         case "languages":
+            updated_keyboard = await nav.create_blank_keyboard("languages")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.languages)
-            await query.message.edit_text("Provide languages")
+            await query.message.answer("Provide languages")
         case "additional_information":
+            updated_keyboard = await nav.create_blank_keyboard("additional information")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
             await state.set_state(ResumeBuilder.additional_information)
-            await query.message.edit_text("Provide information about you")
+            await query.message.answer("Provide information about you")
 
 @profile_router.message(ResumeBuilder.full_name, F.text)
 @profile_router.message(ResumeBuilder.email_address, F.text)

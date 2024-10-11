@@ -1,5 +1,5 @@
 from sqlalchemy.future import select
-from sqlalchemy import BigInteger, update
+from sqlalchemy import BigInteger, update, delete
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Bio, BioPhoto, Like, SaleItem, SaleItemPhoto
@@ -108,6 +108,46 @@ async def get_next_item_without_city(db: AsyncSession, exclude_item_ids: list, c
         return item, item.photos
     return None, None
 # END
+
+
+update_item_photo_by_id(session, item_id, 1, message.photo)
+update_item_by_id(session, item_id, SaleItem.location, message.text) 
+delete_item_by_id(session, item_id)
+get_item_by_id(session, item_id)
+get_user_items(session, user_id)
+
+async def delete_related_item_photos(db: AsyncSession, item_id: int):
+    stmt = delete(SaleItemPhoto).where(SaleItemPhoto.sale_item_id == item_id)
+    await db.execute(stmt)
+    await db.commit()
+async def delete_item_by_id(db: AsyncSession, item_id: int):
+    await delete_related_item_photos(db, item_id)
+    stmt = delete(SaleItem).where(SaleItem.id == item_id)
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def update_item_by_id(db: AsyncSession, item_id: int, field, field_value: str):
+    stmt = update(SaleItem).where(SaleItem.id == item_id).values({field: field_value})
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def update_item_photo_by_id(db: AsyncSession, photo_id: int, photo_value: str):
+    stmt = select(SaleItemPhoto).where(SaleItemPhoto.sale_item_id)
+
+    stmt = update(Sale).where(Job.id == item_id).values({field: field_value})
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def get_user_items(db: AsyncSession, user_id):
+    stmt = select(Job).filter(Job.user_id == user_id)
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    return jobs
+async def get_item_by_id(db: AsyncSession, item_id: int):
+    stmt = select(Job).filter(Job.id == item_id).order_by(Job.id)
+    result = await db.execute(stmt)
+    job = result.scalars().one()
+    return job
 
 
 

@@ -52,7 +52,6 @@ class Job(StatesGroup):
     address = State()
 class JobEdit(StatesGroup):
     job_id = State()
-    chat_instance = State()
     title = State()
     description = State()
     skills = State()
@@ -150,19 +149,22 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
         await rq.update_my_jobs_city_search(session, user_id, True)
     updated_keyboard = await nav.create_blank_keyboard("Search 🔎")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Jobs.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
         job = await rq.get_next_job_by_id_with_city(session, user.jobs_search_id_list, user.city, user_id)
         if job:
+            await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await post_summary(job)
             await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
         elif job is None:
+            await query.message.answer("Searching...")
             await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("Would you like to search job options outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())  
         else:
+            await query.message.answer("Searching...")
             await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
@@ -174,16 +176,22 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
         await rq.update_my_jobs_city_search(session, user_id, False)
     updated_keyboard = await nav.create_blank_keyboard("Search beyond city 🔎")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-    await query.message.answer("Searching beyond...", reply_markup=nav.nextMenu)
+    # await query.message.answer("Searching beyond...", reply_markup=nav.nextMenu)
     await state.set_state(Jobs.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
         job = await rq.get_next_job_by_id_without_city(session, user.jobs_search_id_list, user.city, user_id)
         if job:
+            await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await post_summary(job)
             await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
+        elif job is None:
+            await query.message.answer("Searching...")
+            await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
         else:
+            await query.message.answer("Searching...")
             await query.message.answer("No more job posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("You can come later to see new available job vacations", reply_markup=nav.jobsChoiceMenu.as_markup())  
 
@@ -207,6 +215,7 @@ async def new_job_by_query(query: CallbackQuery, state: FSMContext):
 @job_router.callback_query(nav.MenuCallback.filter(F.menu == "my_job_ads"))
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "my_job_ads"))
 async def my_job_posts_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
+    user_id = query.from_user.id
     await query.answer("My job ads")
     # print("CALLBACK DATA", callback_data) 
     # print("CALLBACK DATA", callback_data.model_dump_json()) 
@@ -216,14 +225,16 @@ async def my_job_posts_by_query(query: CallbackQuery, callback_data: nav.MenuCal
     # print("menu" in callback_data.model_dump().keys())
     if "menu" in callback_data.model_dump():
         updated_keyboard = await nav.create_blank_keyboard("View my job ads 🧾")
-    else:
+    elif "action" in callback_data.model_dump():
         updated_keyboard = await nav.create_blank_keyboard("Back")
+    else:
+        updated_keyboard = await nav.create_blank_keyboard("Deleted")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
         
     # make a database request
     # and further manipulations
     async with SessionLocal() as session:
-        my_jobs = await rq.get_user_jobs(session, query.from_user.id)
+        my_jobs = await rq.get_user_jobs(session, user_id)
         for job in my_jobs:
             print(job.title, job.id)
         if my_jobs:            
@@ -237,29 +248,29 @@ async def my_job_posts_by_query(query: CallbackQuery, callback_data: nav.MenuCal
             # create redirecting
             answer = await query.message.answer("You have no job ads")
             await start_jobs(answer, state)
-async def my_job_posts_by_message(message: Message, state: FSMContext, user_id: int = 0):
-    updated_keyboard = await nav.create_blank_keyboard("Deleted")
-    await message.edit_reply_markup(reply_markup=updated_keyboard)
-    # await message.answer("Hello")
-    # make a database request
-    # and further manipulations
-    async with SessionLocal() as session:
-        my_jobs = await rq.get_user_jobs(session, user_id or message.from_user.id)
-        for job in my_jobs:
-            print(job.title, job.id)
-        if my_jobs:
-            keyboard = await nav.create_jobs_keyboard(my_jobs)
-            # title = await message.answer("--- Posts Manager ---", reply_markup=ReplyKeyboardRemove()) if has_title else None
-            await message.answer("My Posts", reply_markup=keyboard)
-            # if title:
-            #     await title.delete()
-        else:
-            answer = await message.answer("You have no job ads")
-            await start_jobs(answer, state)
+# async def my_job_posts_by_message(message: Message, state: FSMContext, user_id: int = 0):
+#     updated_keyboard = await nav.create_blank_keyboard("Deleted")
+#     await message.edit_reply_markup(reply_markup=updated_keyboard)
+#     # await message.answer("Hello")
+#     # make a database request
+#     # and further manipulations
+#     async with SessionLocal() as session:
+#         my_jobs = await rq.get_user_jobs(session, user_id or message.from_user.id)
+#         for job in my_jobs:
+#             print(job.title, job.id)
+#         if my_jobs:
+#             keyboard = await nav.create_jobs_keyboard(my_jobs)
+#             # title = await message.answer("--- Posts Manager ---", reply_markup=ReplyKeyboardRemove()) if has_title else None
+#             await message.answer("My Posts", reply_markup=keyboard)
+#             # if title:
+#             #     await title.delete()
+#         else:
+#             answer = await message.answer("You have no job ads")
+#             await start_jobs(answer, state)
 
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "manage"))
 async def handle_job_list_by_query(query: CallbackQuery, callback_data: nav.JobsCallback, state: FSMContext):
-    await query.answer("Post")
+    await query.answer("Job")
     job_id, additional = int(callback_data.id), callback_data.additional
     updated_keyboard = await nav.create_blank_keyboard(f"{additional}")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
@@ -306,9 +317,13 @@ async def handle_job_delete_by_query(query: CallbackQuery, callback_data: nav.Jo
             await query.answer("Deleted")
             # await query.message.answer("Job post successfully deleted")
             # await query.message.edit_reply_markup(ReplyKeyboardRemove())
-            await my_job_posts_by_message(query.message, state, user_id=query.from_user.id)
+            # await my_job_posts_by_message(query.message, state, user_id=query.from_user.id)
+            callback_data = nav.BlankCallback(text="Deleted")
+            await my_job_posts_by_query(query, callback_data, state)
         else:
             await query.answer("Error")
+            callback_data = nav.BlankCallback(text="Error")
+            await my_job_posts_by_query(query, callback_data, state)
 
 ### FINISHED CHANGING
 

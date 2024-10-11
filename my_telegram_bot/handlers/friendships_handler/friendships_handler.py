@@ -165,12 +165,13 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You do not have a profile for this app. Let's create one")
             await new_bio_by_query(query, state)
             
-    await query.message.answer("Searching...", reply_markup=nav.likeMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.likeMenu)
     await state.set_state(Friends.searching)
     async with SessionLocal() as session: # Get next bio
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
         bio, photos = await rq.get_next_bio_by_id_with_city(session, my_bio.search_id, my_bio.id, my_bio.profile_city)
         if bio:
+            await query.message.answer("Searching...", reply_markup=nav.likeMenu)
             print(bio.id, bio.profile_name)
             summary = markdown.text(
             markdown.hbold(f'{bio.profile_name}'),
@@ -186,12 +187,14 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             updated = await rq.update_my_search_id(session, my_bio.id, bio.id)
             print('UPDATED', updated)
         elif bio is None:
+            await query.message.answer("Searching...")
             await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("Would you like to search beyond your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
             return
         else:
-             await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
-             await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
+            await query.message.answer("Searching...")
+            await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
 
 @friendship_router.callback_query(nav.FriendsCallback.filter(F.action == "search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
@@ -212,12 +215,13 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You do not have a profile for this app. Let's create one")
             await new_bio_by_query(query, state)
             
-    await query.message.answer("Searching...", reply_markup=nav.likeMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.likeMenu)
     await state.set_state(Friends.searching)
     async with SessionLocal() as session: # Get next bio
         my_bio = await rq.get_my_bio_by_user_id_without_photos(session, user_id)
         bio, photos = await rq.get_next_bio_by_id_without_city(session, my_bio.beyond_city_search_id, my_bio.id, my_bio.profile_city)
         if bio:
+            await query.message.answer("Searching...", reply_markup=nav.likeMenu)
             print(bio.id, bio.profile_name)
             summary = markdown.text(
             markdown.hbold(f'{bio.profile_name}'),
@@ -232,9 +236,14 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer_media_group(media=media)
             updated = await rq.update_my_beyond_city_search_id(session, my_bio.id, bio.id)
             print('UPDATED', updated)
+        elif bio is None:
+            await query.message.answer("Searching...")
+            await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
         else:
-             await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
-             await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
+            await query.message.answer("Searching...")
+            await query.message.answer("No more profiles", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new users' profiles", reply_markup=nav.homeChoiceMenu.as_markup())
 
 
 # --- MY BIO ---

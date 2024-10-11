@@ -52,17 +52,23 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 
 @living_router.message(Command("livings", prefix=("!/")))
 async def start_livings(message: Message, state: FSMContext):
-    await state.set_state(Livings.choice)
-    await message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu)
+    await message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
 @living_router.callback_query(nav.MenuCallback.filter(F.menu == "start_livings"))
-async def start_livings_by_query(query: CallbackQuery, state: FSMContext):
-    await state.set_state(Livings.choice)
-    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu)
+async def start_livings_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext): # HAS Middleware
+    # ...
+    await query.message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
 
 
 @living_router.message(Living.description, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo1, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo2, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo3, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo4, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo5, Command("cancel", prefix=("!/")))
+@living_router.message(Living.photo6, Command("cancel", prefix=("!/")))
 @living_router.message(Living.price, Command("cancel", prefix=("!/")))
 @living_router.message(Living.location, Command("cancel", prefix=("!/")))
+@living_router.message(Living.address, Command("cancel", prefix=("!/")))
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state is None:
@@ -72,7 +78,7 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(Livings.choice)
     await message.answer(
         "Cancelled",
-        reply_markup=nav.livingsChoiceMenu,
+        reply_markup=nav.livingsChoiceMenu.as_markup(),
     )
     await set_default_commands(id=message.from_user.id)
 
@@ -82,43 +88,75 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 async def back_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state == Living.description:
-            await state.set_state(Livings.choice)
-            await message.answer("Choose action:", reply_markup=nav.livingsReplyChoiceMenu)
+        await state.set_state(Livings.choice)
+        await message.answer("Choose action:", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
+    elif current_state == Living.photo1:
+        await state.set_state(Living.description)
+        await message.answer("Send me new description")
+    elif current_state == Living.photo2:
+        await state.set_state(Living.photo1)
+        await message.answer("Send me another photo")
+    elif current_state == Living.photo3:
+        await state.set_state(Living.photo2)
+        await message.answer("Send me another photo")
+    elif current_state == Living.photo4:
+        await state.set_state(Living.photo3)
+        await message.answer("Send me another photo")
+    elif current_state == Living.photo5:
+        await state.set_state(Living.photo4)
+        await message.answer("Send me another photo")
+    elif current_state == Living.photo6:
+        await state.set_state(Living.photo5)
+        await message.answer("Send me another photo")
     elif current_state == Living.price:
-            await state.set_state(Living.description)
-            await message.answer("Send me new description")
+        await state.set_state(Living.photo6)
+        await message.answer("Send me another photo")
     elif current_state == Living.location:
-            await state.set_state(Living.price)
-            await message.answer("Send me new price")
+        await state.set_state(Living.price)
+        await message.answer("Send me new price")
+    elif current_state == Living.address:
+        await state.set_state(Living.location)
+        await message.answer("Send me new location")
+    else:
+        pass
+
 
 
 # --- SEARCH ---
-@living_router.message(Livings.choice, F.text == "Search 🔎")
-async def search(message: Message, state: FSMContext):
-    user_id = message.from_user.id
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "search"))
+async def search_by_query(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("Searching")
+    updated_keyboard = await nav.create_blank_keyboard("Search 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)  
     # database call
     async with SessionLocal() as session:
         await rq.update_my_livings_city_search(session, user_id, True)
-    await message.answer("Searching...", reply_markup=nav.nextMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Livings.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
         living, photos = await rq.get_next_living_with_city(session, user.livings_search_id_list, user.city)
         if living:
+            await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await living_summary(living, photos)
-            await message.answer_media_group(media=summary)
+            await query.message.answer_media_group(media=summary)
             await rq.add_id_to_user_livings_search_id_list(session, user.user_id, living.id)
             # updated = await rq.add_id_to_user_sales_jobs_search_id_list()
         elif living is None:
-            await message.answer("No more livings options", reply_markup=ReplyKeyboardRemove())
-            await message.answer("Would you like to search for livings outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
+            await query.message.answer("Searching...")
+            await query.message.answer("No more livings options", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("Would you like to search for livings outside of your city?", reply_markup=nav.askToSearchBeyondMenu.as_markup())
         else:
-            await message.answer("No more livings posts", reply_markup=ReplyKeyboardRemove())
-            await message.answer("You can come later to see new available livings options", reply_markup=nav.livingsChoiceMenu.as_markup())
+            await query.message.answer("Searching...")
+            await query.message.answer("No more livings posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available livings options", reply_markup=nav.livingsChoiceMenu.as_markup())
 @living_router.callback_query(nav.MenuCallback.filter(F.menu == "livings_go_search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
-    await query.answer("Searching outside")
     user_id = query.from_user.id
+    await query.answer("Searching beyond")
+    updated_keyboard = await nav.create_blank_keyboard("Search beyond city 🔎")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         await rq.update_my_livings_city_search(session, user_id, False)
     await query.message.answer("Searching...", reply_markup=nav.nextMenu)
@@ -127,54 +165,46 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
         user = await rq.get_user(session, user_id)
         living, photos = await rq.get_next_living_without_city(session, user.livings_search_id_list, user.city)
         if living:
+            await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await living_summary(living, photos)
             await query.message.answer_media_group(media=summary)
             await rq.add_id_to_user_livings_search_id_list(session, user.user_id, living.id)
-        else:
+        elif living is None:
+            await query.message.answer("Searching...")
+            await query.message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
+            await query.message.answer("You can come later to see new available sales options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
+        elif living is None:
+            await query.message.answer("Searching...")
             await query.message.answer("No more sales posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
 
 
+
 # --- MY POSTS ---
-@living_router.message(Livings.choice, F.text == "View my living ads 🧾")
-async def my_living_posts_by_message(message: Message, state: FSMContext):
-    # make a database request
-    # and further manipulations
-    async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
-    await message.answer("My posts")
 @living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
-async def my_living_posts_by_query(query: CallbackQuery, state: FSMContext):
+async def my_livings_by_query(query: CallbackQuery, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("My Ads")
+    updated_keyboard = await nav.create_blank_keyboard("View my living ads 🧾")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # make a database request
     # and further manipulations
-    async with SessionLocal() as session:
-        new_job = await rq.test_add_job_post_to_user(session)
-        print(new_job)
+    async with SessionLocal() as session:        
+        print("new_job")
     await query.message.answer("My posts")
 
 
 # --- NEW LIVING ---
-@living_router.message(Livings.choice, F.text == "Post an ad 📰")
-async def living(message: Message, state: FSMContext):
-    username = message.from_user.username
-    if username is None:
-        await message.answer("You need to have a username for you account. \nGo to telegram settings and add a username")
-        return
-    await message.answer("Creating your ad...\
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "post_ad"))
+async def new_living_by_query(query: CallbackQuery, state: FSMContext):
+    await query.answer("Creating New Post")
+    updated_keyboard = await nav.create_blank_keyboard("Post item 📰")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    await query.message.answer("Creating your ad...\
                          \nMind that you can always \nGo /back or /cancel the process")
     await state.set_state(Living.description)
-    await message.answer("Provide a full description for your ad:", reply_markup=ReplyKeyboardRemove())
-    await set_back_commands(id=message.from_user.id)
-
-# @living_router.message(Livings.choice)
-# async def choice_invalid(message: Message):
-#     await message.answer("I don't understand you. Please choose your action or Go /home")
-# @living_router.message(Living.title, F.text)
-# async def living_title(message: Message, state: FSMContext):
-#     await state.update_data(title=message.text)
-#     await state.set_state(Living.description)
-#     await message.answer(f"Now, provide some description:")
+    await query.message.answer("Provide a full description for your ad:")
+    await set_back_commands(id=query.from_user.id)
 
 
 # --- LIVING CREATION ---
@@ -317,6 +347,7 @@ async def show_summary(message: Message, data: Dict[str, Any], positive: bool = 
     await message.answer_media_group(media=media)
 
 
+
 # --- NEXT ---
 @living_router.message(Livings.searching, F.text == "Next ➡️")
 async def next_living(message: Message, state: FSMContext):
@@ -341,40 +372,8 @@ async def next_living(message: Message, state: FSMContext):
             await message.answer("No more livings posts", reply_markup=ReplyKeyboardRemove())
             await message.answer("You can come later to see new available livings options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
 
-# @living_router.message(Living.location, F.location)
-# @living_router.message(Living.location, F.text)
-# async def living_location(message: Message, state: FSMContext):
-#     if message.location:
-#         user_location = location.get_location(message.location.latitude, message.location.longitude)
-#         print(user_location)
-#         data = await state.update_data(location=user_location[1])
-#     else:
-#          data = await state.update_data(location=message.text)
-#     await state.clear()
 
-#     await show_summary(message=message, data=data)
 
-#     await state.set_state(Livings.choice)
-#     await message.answer("Good, your ad is successfully posted!", reply_markup=nav.livingsChoiceMenu)
-#     await set_default_commands(id=message.from_user.id)
-
-# async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
-#     title = data["title"]
-#     description = data["description"]
-#     price = data["price"]
-#     location = data["location"]
-#     summary = text(
-#         text(f"{html.underline('Ad overview:\n')}"),
-#         text(f"{html.bold('Title:')} {title}\n"),
-#         text(f"{html.bold('Description:')} {html.italic(description)}\n"),
-#         text(f"{html.bold('Price:')} {html.code(price)}"),
-#         text(f"{html.blockquote(location)}"),
-#     )
-#     await message.answer(text=summary, reply_markup=ReplyKeyboardRemove())
-
-# @living_router.message()
-# async def invalid_input(message: Message):
-#      await message.answer("Please, provide a valid answer livings")
 
 
 # --- HELPER FUNCTIONS ---
@@ -387,12 +386,6 @@ async def living_summary(living: Living, photos): # use ParseMode.HTML (parse_mo
                 markdown.hlink(f'@{living.username}', f'https://t.me/{living.username}'),
                 markdown.hblockquote(f'📍 {living.city}, {living.address}')
             )
-    # summary = markdown.text(
-    #             markdown.text(f'{description}\n'),
-    #             markdown.hbold('Expected price: '),
-    #             markdown.hitalic(f'{price}'),
-    #             markdown.hblockquote(f'{location}, {address}')
-    #         )
     media = []
     for photo in photos:
         media.append(InputMediaPhoto(media=photo.photo_id))
