@@ -28,7 +28,7 @@ from database.models import Job as JobModel
 job_router = Router(name=__name__)
 
 class NewJob():
-     def __init__(self, coordinates, user_id, title, description, skills, city, address, latitude = 0, longtitude = 0) -> None:
+     def __init__(self, coordinates, user_id, title, description, skills, city, address = None, latitude = None, longtitude = None) -> None:
           self.coordinates = coordinates
           self.user_id = user_id
           self.title = title
@@ -362,8 +362,8 @@ async def handle_job_field_edit_by_query(query: CallbackQuery, callback_data: na
     job_id = int(callback_data.id)
     await state.set_state(JobEdit.job_id)
     await state.update_data(job_id=job_id)
-    await state.set_state(JobEdit.chat_instance)
-    await state.update_data(chat_instance=query.chat_instance)
+    # await state.set_state(JobEdit.chat_instance)
+    # await state.update_data(chat_instance=query.chat_instance)
     await query.answer(f"{callback_data.action.capitalize()}")
     match callback_data.action:
         case "title":
@@ -490,7 +490,7 @@ async def job_description(message: Message, state: FSMContext):
 async def job_skills(message: Message, state: FSMContext):
     await state.update_data(skills=message.text)
     await state.set_state(Job.location)
-    await message.answer(f"Ok, now provide the location for your job:", reply_markup=nav.locationMenu)
+    await message.answer(f"Ok, now provide the location (city) for your job:", reply_markup=nav.locationMenu)
 @job_router.message(Job.location, F.location)
 async def job_location(message: Message, state: FSMContext):
     user_location = location.get_location(message.location.latitude, message.location.longitude)
@@ -512,10 +512,10 @@ async def job_city(message: Message, state: FSMContext):
     city = message.text.strip().capitalize()
     await state.update_data(location=city)
     await state.set_state(Job.address)
-    await message.answer("Add an address (street) for your post")
+    await message.answer("Add an address (street) for your post", reply_markup=nav.skipMenu)
 @job_router.message(Job.address, F.text)
 async def job_address(message: Message, state: FSMContext):
-    data = await state.update_data(address=message.text)
+    data = await state.update_data(address=None) if message.text == "Skip" else await state.update_data(address=message.text)
     new_job = NewJob(False, message.from_user.id, data["title"], data["description"], data["skills"], data["location"], data["address"])
     await state.clear()
     await show_summary(message=message, data=data)
@@ -524,7 +524,8 @@ async def job_address(message: Message, state: FSMContext):
         job_post = await rq.add_job_post_to_user(session, new_job)
         print("Job post added successfully", job_post)
     await state.set_state(Jobs.choice)
-    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.jobsReplyChoiceMenu.as_markup())
+    await message.answer("Good, your ad is successfully posted!", reply_markup=ReplyKeyboardRemove())
+    await start_jobs(message, state)
 
 
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
@@ -573,8 +574,8 @@ async def next_job(message: Message, state: FSMContext):
 async def apply_for_job(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     async with SessionLocal() as session:
-         user = await rq.get_user(session, user_id)
-         job_application = await rq.apply_for_job(session, user.jobs_search_id, user.user_id)
+        user = await rq.get_user(session, user_id)
+        job_application = await rq.apply_for_job(session, user.jobs_search_id, user.user_id)
     await query.answer('Applied')
     await query.message.edit_reply_markup(reply_markup=nav.appliedMenu.as_markup())
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "applied"))
@@ -588,12 +589,13 @@ async def post_summary(job: Job): # use ParseMode.HTML (parse_mode=ParseMode.HTM
     job_skills: str = job.skills
     skills_list: list = job_skills.split(',')
     skills_formatted = "\n".join([f"- {skill.strip().capitalize()}" for skill in skills_list])
+    address_check = f", {job.address}" if job.address else ""
     summary = (
         f"<b>{job.title}</b>\n\n"
         f"<code>{job.description}</code>\n\n"
         "Skills required:\n"
         f"{skills_formatted}\n\n"
-        f"<i>📍 {(job.city).capitalize()}, {job.address}</i>"
+        f"<i>📍 {(job.city).capitalize()} {address_check}</i>"
     )
     return summary
 

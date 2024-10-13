@@ -9,6 +9,7 @@ from aiogram.types import Message, ReplyKeyboardRemove, InputMediaPhoto, FSInput
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.filters.callback_data import CallbackData
 
 from . import sales_markup as nav
 from utils import location
@@ -33,6 +34,14 @@ class Sales(StatesGroup):
     searching = State()
 
 class SaleItem(StatesGroup):
+    title = State()
+    description = State()
+    photo1 = State()
+    photo2 = State()
+    photo3 = State()
+    price = State()
+    location = State()
+class SaleItemEdit(StatesGroup):
     item_id = State()
     photo_id = State()
     title = State()
@@ -42,7 +51,6 @@ class SaleItem(StatesGroup):
     photo3 = State()
     price = State()
     location = State()
-
 
 # ---UTILITY FUNCTIONS---
 search_funcitons_map = { # execute appropriate function depending on the city_search value in bio
@@ -56,7 +64,12 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_sales(message: Message, state: FSMContext):
     await message.answer("Hi there! Choose the action:", reply_markup=nav.salesReplyChoiceMenu.as_markup())
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "start_sales"))
+@sales_router.callback_query(nav.SalesCallback.filter(F.action == "start_sales"))
 async def start_sales_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext): # HAS Middleware
+    if "action" in callback_data.model_dump():
+        await query.answer("Sales")
+        updated_keyboard = await nav.create_blank_keyboard(f"{callback_data.additional}")
+        await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # await query.answer("Sales")
     # updated_keyboard = await nav.create_blank_keyboard("Sales 💵")
     # await query.message.edit_reply_markup(reply_markup=updated_keyboard)
@@ -323,10 +336,16 @@ async def next_job(message: Message, state: FSMContext):
 
 # --- MY POSTS ---
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "my_items"))
-async def my_items_by_query(query: CallbackQuery, state: FSMContext):
+@sales_router.callback_query(nav.SalesCallback.filter(F.action == "my_items"))
+async def my_items_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("My Ads")
-    updated_keyboard = await nav.create_blank_keyboard("View my sale ads🧾")
+    if "menu" in callback_data.model_dump(): 
+        updated_keyboard = await nav.create_blank_keyboard("View my sale ads🧾")
+    elif "action" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("Back")
+    else:
+        updated_keyboard = await nav.create_blank_keyboard("Deleted")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # make a database request
     # and further manipulations
@@ -335,7 +354,7 @@ async def my_items_by_query(query: CallbackQuery, state: FSMContext):
         for item in my_items:
             print(item.title, item.price)
         if my_items:
-            keyboard = await nav.create_sales_keyboard(my_items)
+            keyboard = await nav.create_items_keyboard(my_items)
             await query.message.answer("My sales ads", reply_markup=keyboard)
         else:
             answer = await query.message.answer("You have no sales ads")
@@ -352,7 +371,7 @@ async def handle_single_item_list_by_query(query: CallbackQuery, callback_data: 
     async with SessionLocal() as session:
         my_item, photos = await rq.get_item_by_id(session, item_id)
         if my_item:
-            keyboard = await nav.create_single_item_keyboard(my_item.id, my_item.title)
+            keyboard = await nav.create_single_item_keyboard(my_item.id, my_item.title, photos)
             summary = await item_summary(my_item, photos)
             await query.message.answer_media_group(media=summary)
             await query.message.answer(text="Actions for the above 🔝 item", reply_markup=keyboard) 
@@ -363,7 +382,7 @@ async def handle_single_item_list_by_message(message: Message, callback_data: na
     async with SessionLocal() as session:
         my_item, photos = await rq.get_item_by_id(session, item_id)
         if my_item:
-            keyboard = await nav.create_single_item_keyboard(my_item.id, my_item.title)
+            keyboard = await nav.create_single_item_keyboard(my_item.id, my_item.title, photos)
             summary = await item_summary(my_item, photos)
             await message.answer_media_group(media=summary)
             await message.answer(text="Actions for the above 🔝 item", reply_markup=keyboard) 
@@ -396,65 +415,66 @@ async def handle_item_delete_by_query(query: CallbackQuery, callback_data: nav.S
 async def handle_item_edit_by_query(query: CallbackQuery, callback_data: nav.SalesCallback, state: FSMContext):
     await query.answer("Edit")
     item_id = int(callback_data.id)
+    photos_string = callback_data.additional
     # additional = callback_data.additional
     updated_keyboard = await nav.create_blank_keyboard("✏️ Edit")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-    keyboard = await nav.create_edit_item_keyboard(item_id)
+    keyboard = await nav.create_edit_item_keyboard(item_id, photos_string)
     await query.message.answer("What do you want to edit?", reply_markup=keyboard)
 @sales_router.callback_query(nav.SalesCallback.filter())
 async def handle_item_field_edit_by_query(query: CallbackQuery, callback_data: nav.SalesCallback, state: FSMContext):
     item_id = int(callback_data.id)
-    await state.set_state(SaleItem.item_id)
+    await state.set_state(SaleItemEdit.item_id)
     await state.update_data(item_id=item_id)
     photo_id = int(callback_data.additional)
-    await state.set_state(SaleItem.photo1)
+    await state.set_state(SaleItemEdit.photo_id)
     await state.update_data(photo_id=photo_id)
     await query.answer(f"{callback_data.action.capitalize()}")
     match callback_data.action:
         case "title":
             updated_keyboard = await nav.create_blank_keyboard("title")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.title)
+            await state.set_state(SaleItemEdit.title)
             await query.message.answer("Provide new title")
         case "description":
             updated_keyboard = await nav.create_blank_keyboard("description")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.description)
+            await state.set_state(SaleItemEdit.description)
             await query.message.answer("Provide new description")
         case "price":
             updated_keyboard = await nav.create_blank_keyboard("price")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.price)
+            await state.set_state(SaleItemEdit.price)
             await query.message.answer("Provide new price")
         case "location":
             updated_keyboard = await nav.create_blank_keyboard("location")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.location)
+            await state.set_state(SaleItemEdit.location)
             await query.message.answer("Provide new location")
         case "photo1":
             updated_keyboard = await nav.create_blank_keyboard("photo 1")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.photo1)
+            await state.set_state(SaleItemEdit.photo1)
             await query.message.answer("Provide new photo")
         case "photo2":
             updated_keyboard = await nav.create_blank_keyboard("photo 2")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.photo2)
+            await state.set_state(SaleItemEdit.photo2)
             await query.message.answer("Provide new photo")
         case "photo3":
             updated_keyboard = await nav.create_blank_keyboard("photo 3")
             await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-            await state.set_state(SaleItem.photo3)
+            await state.set_state(SaleItemEdit.photo3)
             await query.message.answer("Provide new photo")
         
-@sales_router.message(SaleItem.title, F.text)
-@sales_router.message(SaleItem.description, F.text)
-@sales_router.message(SaleItem.price, F.text)
-@sales_router.message(SaleItem.location, F.location)
-@sales_router.message(SaleItem.location, F.text)
-@sales_router.message(SaleItem.photo1, F.photo)
-@sales_router.message(SaleItem.photo2, F.photo)
-@sales_router.message(SaleItem.photo3, F.photo)
+@sales_router.message(SaleItemEdit.title, F.text)
+@sales_router.message(SaleItemEdit.description, F.text)
+@sales_router.message(SaleItemEdit.price, F.text)
+@sales_router.message(SaleItemEdit.location, F.location)
+@sales_router.message(SaleItemEdit.location, F.text)
+@sales_router.message(SaleItemEdit.photo1, F.photo)
+@sales_router.message(SaleItemEdit.photo2, F.photo)
+@sales_router.message(SaleItemEdit.photo3, F.photo)
 async def handle_item_field_update_callback(message: Message, state: FSMContext):
     current_state = await state.get_state()
     data = await state.get_data()
@@ -462,40 +482,40 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
     photo_id = data["photo_id"]
     callback_data = nav.SalesCallback(id=str(item_id), action="list", additional="")
     match current_state:
-        case SaleItem.title.state:
+        case SaleItemEdit.title.state:
             print("ITEM ID", item_id)
             print("Current State", current_state)
             # DB query to edit field
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, SaleItem.title, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, Item.title, message.text) 
                 if updated:
                     await message.answer("Title successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
                 else: 
                     await message.answer("Error")
-        case SaleItem.description.state:
+        case SaleItemEdit.description.state:
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, SaleItem.description, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, Item.description, message.text) 
                 if updated:
                     await message.answer("Description successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
                 else: 
                     await message.answer("Error")
-        case SaleItem.price.state:
+        case SaleItemEdit.price.state:
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, SaleItem.price, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, Item.price, message.text) 
                 if updated:
                     await message.answer("Price successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
                 else: 
                     await message.answer("Error")
-        case SaleItem.location.state:
+        case SaleItemEdit.location.state:
             if message.location:
                 user_location = location.get_location(message.location.latitude, message.location.longitude)
                 print(user_location)
                 address = user_location[1]
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_by_id(session, item_id, SaleItem.location, address)
+                    updated = await rq.update_item_by_id(session, item_id, Item.city, address)
                     if updated:
                         await message.answer("Location successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
@@ -503,18 +523,18 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                         await message.answer("Error")
             else:
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_by_id(session, item_id, SaleItem.location, message.text) 
+                    updated = await rq.update_item_by_id(session, item_id, Item.city, message.text) 
                     if updated:
                         await message.answer("City successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
                     else: 
                         await message.answer("Error")
-        case SaleItem.photo1.state:
+        case SaleItemEdit.photo1.state:
             if message.photo:
-                print(user_location)
                 file_id = message.photo[-1].file_id
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_photo_by_id(session, item_id, photo_id, message.photo)
+                    print("PHOTO", photo_id, "FILE_ID", file_id)
+                    updated = await rq.update_item_photo_by_id(session, photo_id, file_id)
                     if updated:
                         await message.answer("Photo 1 successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
@@ -522,12 +542,11 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                         await message.answer("Error")
             else:
                 await message.answer("Provide a photo")                         
-        case SaleItem.photo2.state:
+        case SaleItemEdit.photo2.state:
             if message.photo:
-                print(user_location)
                 file_id = message.photo[-1].file_id
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_photo_by_id(session, item_id, photo_id, file_id)
+                    updated = await rq.update_item_photo_by_id(session, photo_id, file_id)
                     if updated:
                         await message.answer("Photo 2 successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
@@ -535,12 +554,11 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                         await message.answer("Error")
             else:
                 await message.answer("Provide a photo") 
-        case SaleItem.photo3.state:
+        case SaleItemEdit.photo3.state:
             if message.photo:
-                print(user_location)
                 file_id = message.photo[-1].file_id
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_photo_by_id(session, item_id, photo_id, file_id)
+                    updated = await rq.update_item_photo_by_id(session, photo_id, file_id)
                     if updated:
                         await message.answer("Photo 2 successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
@@ -551,7 +569,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
 
 
 # --- HELPER FUNCTIONS ---
-async def item_summary(item: SaleItem, photos): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
+async def item_summary(item: SaleItem, photos):
     summary = markdown.text(
                 markdown.hbold(f'{item.title} |'),
                 markdown.hunderline(f'{item.price}\n'),

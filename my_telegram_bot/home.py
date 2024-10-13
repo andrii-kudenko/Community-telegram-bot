@@ -55,10 +55,11 @@ async def livings_middleware(query: CallbackQuery, callback_data: nav.MenuCallba
 
 
 
-@home_router.callback_query(friendsMenuCallback.filter(F.menu == "home"))
-@home_router.callback_query(jobsMenuCallback.filter(F.menu == "home"))
+@home_router.callback_query(nav.MenuCallback.filter(F.menu == "home"))
 async def callback_home(query: CallbackQuery, callback_data: friendsMenuCallback):
     await query.answer("Home")
+    updated_keyboard = await nav.create_blank_keyboard("Go home 🏠")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     text = "Choose category:" + " " * 50 + "&#x200D;" + '\n'
-    await query.message.edit_text(text, reply_markup=nav.categoryChoiceMenu.as_markup())
+    await query.message.answer(text, reply_markup=nav.categoryChoiceMenu.as_markup())
     await set_default_commands(id=query.from_user.id)

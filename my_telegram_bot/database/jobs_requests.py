@@ -73,13 +73,22 @@ async def delete_job_by_id(db: AsyncSession, job_id: int):
     return result
 async def add_job_post_to_user(db: AsyncSession, job):
     db_job = Job(user_id=job.user_id, title=job.title, description=job.description, skills=job.skills,
-                 latitude=str(job.latitude) if job.coordinates else '0',
-                 longtitude=str(job.longtitude) if job.coordinates else '0',
+                 latitude=str(job.latitude),
+                 longtitude=str(job.longtitude),
                  city=job.city, address=job.address)
     db.add(db_job)
     await db.commit()
     await db.refresh(db_job)
     return db_job
+# async def add_job_post_to_user(db: AsyncSession, job):
+#     db_job = Job(user_id=job.user_id, title=job.title, description=job.description, skills=job.skills,
+#                  latitude=str(job.latitude) if job.coordinates else '0',
+#                  longtitude=str(job.longtitude) if job.coordinates else '0',
+#                  city=job.city, address=job.address)
+#     db.add(db_job)
+#     await db.commit()
+#     await db.refresh(db_job)
+#     return db_job
 async def test_add_job_post_to_user(db: AsyncSession):
     db_job = Job(user_id=539444135, title='Fashion Consultant', description='We hire a professional fashion designer/stylist', skills='Communicate with customers, look for appropriate clothes as per customer request',
                  latitude=str(43.468128),

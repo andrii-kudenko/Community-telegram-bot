@@ -13,6 +13,9 @@ from aiogram.filters.callback_data import CallbackData
 btnNext = KeyboardButton(text='Next ➡️')
 nextMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnNext]])
 
+btnSkip = KeyboardButton(text="Skip")
+skipMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnSkip]])
+
 
 # --- LOCATION ---
 btnLocation = KeyboardButton(text='Provide Location', request_location=True)
@@ -44,6 +47,7 @@ jobsReplyChoiceMenu.button(text="Search 🔎", callback_data=JobsCallback(id="0"
 jobsReplyChoiceMenu.button(text="Post an ad 📰", callback_data=JobsCallback(id="0", action="post_ad", additional="").pack())
 jobsReplyChoiceMenu.button(text="View my job ads 🧾", callback_data=MenuCallback(menu="my_job_ads").pack())
 jobsReplyChoiceMenu.adjust(2)
+
 
 applyMenu = InlineKeyboardBuilder()
 applyMenu.button(text='Apply 📨', callback_data=ApplyCallback(action="apply").pack())
