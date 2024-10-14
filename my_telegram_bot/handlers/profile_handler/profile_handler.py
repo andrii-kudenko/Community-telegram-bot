@@ -39,10 +39,13 @@ async def start_profile(message: Message, state: FSMContext):
 
 
 @profile_router.callback_query(nav.MenuCallback.filter(F.menu == "start_profile"))
-@profile_router.callback_query(nav.ResumeCallback.filter(F.action == "leave"))
-async def start_profile_by_query(query: CallbackQuery, state: FSMContext):
+@profile_router.callback_query(nav.ResumeCallback.filter(F.action == "start_profile"))
+async def start_profile_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
     await query.answer("Profile")
-    updated_keyboard = await nav.create_blank_keyboard("Profile 👤")
+    if "menu" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("Profile 👤")
+    else:
+        updated_keyboard = await nav.create_blank_keyboard("Back")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     # await query.answer("Jobs")
     # await state.set_state(Jobs.choice)
@@ -51,11 +54,18 @@ async def start_profile_by_query(query: CallbackQuery, state: FSMContext):
 
 
 @profile_router.callback_query(nav.MenuCallback.filter(F.menu == "my_resume_editor"))
-async def my_resume_editor_by_query(query: CallbackQuery, state: FSMContext):
+@profile_router.callback_query(nav.ResumeCallback.filter(F.action == "my_resume_editor"))
+async def my_resume_editor_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("My Resume")
-    updated_keyboard = await nav.create_blank_keyboard("My Resume")
-    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    if "menu" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("Resume Editor")
+    elif "action" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("Back")
+    else:
+        updated_keyboard = None # to be added
+        # updated_keyboard = await nav.create_blank_keyboard("Deleted") # to be added
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard) if updated_keyboard else None
     # await query.answer("My Resume")
     # await state.set_state(Jobs.choice)
     # await query.message.delete()
@@ -84,30 +94,34 @@ async def my_resume_editor_by_messsage(message: Message, state: FSMContext):
 @profile_router.callback_query(nav.ResumeCallback.filter(F.action == "create_resume"))
 async def create_resume(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
-    await query.answer("Resume creation")
-    updated_keyboard = await nav.create_blank_keyboard("Create")
+    await query.answer("Resume Creation")
+    updated_keyboard = await nav.create_blank_keyboard("Created")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         created_resume = await rq.create_resume(session, user_id)
         if created_resume:
             await query.message.answer("Resume created")
-            await my_resume_editor_by_messsage(query.message, state)
+            callback_data = nav.BlankCallback(text="Deleted")
+            await my_resume_editor_by_query(query, callback_data, state)
         else:
             await query.message.answer("Error")
+            callback_data = nav.BlankCallback(text="Error")
+            await my_resume_editor_by_query(query, callback_data, state)
 
 
 @profile_router.callback_query(nav.ResumeCallback.filter(F.action == "my_resume"))
 async def my_resume(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("Resume")
-    updated_keyboard = await nav.create_blank_keyboard("My Resume")
+    updated_keyboard = await nav.create_blank_keyboard("View my resume")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         my_resume = await rq.get_my_resume(session, user_id)
         print("RESUME ", my_resume.full_name, my_resume.email_address, my_resume.additional_information)
         if not my_resume.full_name or not my_resume.email_address or not my_resume.additional_information:
             await query.message.answer("Resume is incomplete. Try adding required* information to complete your resume")
-            await my_resume_editor_by_messsage(query.message, state)
+            callback_data = nav.BlankCallback(text="Error")
+            await my_resume_editor_by_query(query, callback_data, state)
         elif my_resume:
             summary = await resume_summary(my_resume)
             await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.myResumeMenu.as_markup())

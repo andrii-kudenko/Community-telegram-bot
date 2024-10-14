@@ -11,14 +11,20 @@ class ResumeCallback(CallbackData, prefix="resume"):
 class BlankCallback(CallbackData, prefix="empty"):
     text: str
 
+class JobsCallback(CallbackData, prefix="job"):
+    id: str
+    action: str
+    additional: str
+
 
 choiceMenu = InlineKeyboardBuilder()
 choiceMenu.button(text="My bio", callback_data=MenuCallback(menu="my_bio").pack())
 choiceMenu.button(text="My job ads", callback_data=MenuCallback(menu="my_job_ads").pack())
 choiceMenu.button(text="My sales ads", callback_data=MenuCallback(menu="my_items").pack())
 choiceMenu.button(text="My livings ads", callback_data=MenuCallback(menu="my_livings").pack())
-choiceMenu.button(text="My Resume", callback_data=MenuCallback(menu="my_resume_editor").pack())
-choiceMenu.adjust(2)
+choiceMenu.button(text="Resume Editor", callback_data=MenuCallback(menu="my_resume_editor").pack())
+choiceMenu.button(text="Go home 🏠", callback_data=MenuCallback(menu="home").pack())
+choiceMenu.adjust(2, 2, 1)
 
 
 resumeMenu = InlineKeyboardBuilder()
@@ -35,12 +41,12 @@ resumeMenu.adjust(2)
 
 
 myResumeMenu = InlineKeyboardBuilder()
-myResumeMenu.button(text="Back", callback_data=MenuCallback(menu="my_resume_editor").pack())
-myResumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+myResumeMenu.button(text="Back", callback_data=ResumeCallback(action="my_resume_editor").pack())
+myResumeMenu.button(text="Search job opportunities 🔎", callback_data=JobsCallback(id="", action="search", additional="").pack())
 
 createResumeMenu = InlineKeyboardBuilder()
 createResumeMenu.button(text="Create", callback_data=ResumeCallback(action="create_resume").pack())
-createResumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+createResumeMenu.button(text="Back", callback_data=ResumeCallback(action="start_profile").pack())
 
 async def create_my_resume_keyboard(resume):
     resumeMenu = InlineKeyboardBuilder()
@@ -56,7 +62,7 @@ async def create_my_resume_keyboard(resume):
         else:
             resumeMenu.button(text=f"{attr_dict[attr]}" + f"{"*" if attr in ["full_name", "additional_information", "email_address"] else ""} 🔴", callback_data=ResumeCallback(action=f"{attr}").pack())
     resumeMenu.button(text="View my resume", callback_data=ResumeCallback(action="my_resume").pack())
-    resumeMenu.button(text="Leave", callback_data=ResumeCallback(action="leave").pack())
+    resumeMenu.button(text="Back", callback_data=ResumeCallback(action="start_profile").pack())
     resumeMenu.adjust(2)
     return resumeMenu.as_markup()
     

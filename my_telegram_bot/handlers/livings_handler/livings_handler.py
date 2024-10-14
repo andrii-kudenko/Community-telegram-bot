@@ -14,7 +14,7 @@ from . import livings_markup as nav
 from utils import location
 from bot_info import set_back_commands, set_default_commands
 from database import livings_requests as rq
-from database.models import SessionLocal
+from database.models import SessionLocal, Living as LivingModel
 
 living_router = Router(name=__name__)
 
@@ -43,6 +43,15 @@ class Living(StatesGroup):
     location = State()
     # optional
     address = State()
+class LivingEdit(StatesGroup):
+    living_id = State()
+    photo_id = State()
+    description = State()
+    new_photo = State()
+    price = State()
+    location = State()
+    # optional
+    address = State()
 
 # ---UTILITY FUNCTIONS---
 search_funcitons_map = { # execute appropriate function depending on the city_search value in bio
@@ -54,8 +63,13 @@ search_funcitons_map = { # execute appropriate function depending on the city_se
 async def start_livings(message: Message, state: FSMContext):
     await message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
 @living_router.callback_query(nav.MenuCallback.filter(F.menu == "start_livings"))
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "start_livings"))
 async def start_livings_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext): # HAS Middleware
     # ...
+    if "action" in callback_data.model_dump():
+        await query.answer("Livings")
+        updated_keyboard = await nav.create_blank_keyboard(f"{callback_data.additional}")
+        await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     await query.message.answer("Hi there! Choose the action:", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
 
 
@@ -85,6 +99,12 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 @living_router.message(Living.description, Command("back", prefix=("!/")))
 @living_router.message(Living.price, Command("back", prefix=("!/")))
 @living_router.message(Living.location, Command("back", prefix=("!/")))
+@living_router.message(Living.photo1, Command("back", prefix=("!/")))
+@living_router.message(Living.photo2, Command("back", prefix=("!/")))
+@living_router.message(Living.photo3, Command("back", prefix=("!/")))
+@living_router.message(Living.photo4, Command("back", prefix=("!/")))
+@living_router.message(Living.photo5, Command("back", prefix=("!/")))
+@living_router.message(Living.photo6, Command("back", prefix=("!/")))
 async def back_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state == Living.description:
@@ -151,7 +171,7 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("Searching...")
             await query.message.answer("No more livings posts", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("You can come later to see new available livings options", reply_markup=nav.livingsChoiceMenu.as_markup())
-@living_router.callback_query(nav.MenuCallback.filter(F.menu == "livings_go_search_beyond"))
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("Searching beyond")
@@ -179,26 +199,11 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
 
 
-
-# --- MY POSTS ---
-@living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
-async def my_livings_by_query(query: CallbackQuery, state: FSMContext):
-    user_id = query.from_user.id
-    await query.answer("My Ads")
-    updated_keyboard = await nav.create_blank_keyboard("View my living ads 🧾")
-    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
-    # make a database request
-    # and further manipulations
-    async with SessionLocal() as session:        
-        print("new_job")
-    await query.message.answer("My posts")
-
-
 # --- NEW LIVING ---
 @living_router.callback_query(nav.LivingsCallback.filter(F.action == "post_ad"))
 async def new_living_by_query(query: CallbackQuery, state: FSMContext):
     await query.answer("Creating New Post")
-    updated_keyboard = await nav.create_blank_keyboard("Post item 📰")
+    updated_keyboard = await nav.create_blank_keyboard("Post an ad 📰")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     await query.message.answer("Creating your ad...\
                          \nMind that you can always \nGo /back or /cancel the process")
@@ -285,7 +290,7 @@ async def living_location(message: Message, state: FSMContext):
         print("Living post added successfully", new_living_post)
 
     await state.set_state(Livings.choice)
-    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.livingsReplyChoiceMenu)
+    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
     await set_default_commands(id=message.from_user.id)
 @living_router.message(Living.location, F.text)
 async def living_city(message: Message, state: FSMContext):
@@ -312,7 +317,7 @@ async def living_address(message: Message, state: FSMContext):
         print("Living post added successfully", new_living_post)
 
     await state.set_state(Livings.choice)
-    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.livingsReplyChoiceMenu)
+    await message.answer("Good, your ad is successfully posted!", reply_markup=nav.livingsReplyChoiceMenu.as_markup())
 
 async def show_summary(message: Message, data: Dict[str, Any], positive: bool = True):
     description = data["description"]
@@ -373,16 +378,222 @@ async def next_living(message: Message, state: FSMContext):
             await message.answer("You can come later to see new available livings options", reply_markup=nav.livingsChoiceMenu.as_markup()) 
 
 
+# --- MY POSTS ---
+@living_router.callback_query(nav.MenuCallback.filter(F.menu == "my_livings"))
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "my_livings"))
+async def my_livings_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext):
+    user_id = query.from_user.id
+    await query.answer("My Ads")
+    if "menu" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard("View my living ads 🧾")
+    elif "action" in callback_data.model_dump():
+        updated_keyboard = await nav.create_blank_keyboard(callback_data.additional)
+    else:
+        updated_keyboard = await nav.create_blank_keyboard("Deleted")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    # make a database request
+    # and further manipulations
+    async with SessionLocal() as session:     
+        my_livings = await rq.get_user_livings(session, user_id)   
+        for living in my_livings:
+            print(living.description)
+        if my_livings:
+            keyboard = await nav.create_livings_keyboard(my_livings)
+            await query.message.answer("My Living Ads", reply_markup=keyboard)
+        else:
+            answer = await query.message.answer("You have no livings ads")
+            await start_livings(answer, state)
+
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "manage"))
+async def handle_single_item_list_by_query(query: CallbackQuery, callback_data: nav.LivingsCallback, state: FSMContext):
+    await query.answer("Living")
+    living_id, additional = int(callback_data.id), callback_data.additional
+    updated_keyboard = await nav.create_blank_keyboard(f"{additional}")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    # await query.message.answer(query.chat_instance)
+    # Query the job
+    async with SessionLocal() as session:
+        my_living, photos = await rq.get_living_by_id(session, living_id)
+        if my_living:
+            keyboard = await nav.create_single_living_keyboard(my_living.id, my_living.description, photos)
+            summary = await living_summary(my_living, photos)
+            await query.message.answer_media_group(media=summary)
+            await query.message.answer(text="Actions for the above 🔝 living", reply_markup=keyboard) 
+        else:
+            await query.message.answer("You do not have any posts")
+async def handle_single_item_list_by_message(message: Message, callback_data: nav.LivingsCallback, state: FSMContext):
+    item_id, additional = int(callback_data.id), callback_data.additional
+    async with SessionLocal() as session:
+        my_living, photos = await rq.get_living_by_id(session, item_id)
+        if my_living:
+            keyboard = await nav.create_single_living_keyboard(my_living.id, my_living.description, photos)
+            summary = await living_summary(my_living, photos)
+            await message.answer_media_group(media=summary)
+            await message.answer(text="Actions for the above 🔝 living", reply_markup=keyboard) 
+        else:
+            await message.answer("You do not have any posts")
+
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "delete"))
+async def handle_item_delete_by_query(query: CallbackQuery, callback_data: nav.LivingsCallback, state: FSMContext):
+    my_living = int(callback_data.id)
+    additional = callback_data.additional
+    updated_keyboard = await nav.create_blank_keyboard(f"{additional}")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    print("ID", my_living)
+    # Delete the item
+    async with SessionLocal() as session:
+        deleted_living = await rq.delete_living_by_id(session, my_living)
+        if deleted_living:
+            await query.answer("Deleted")
+            # await query.message.answer("Job post successfully deleted")
+            # await query.message.edit_reply_markup(ReplyKeyboardRemove())
+            callback_data = nav.BlankCallback(text="Deleted")
+            await my_livings_by_query(query, callback_data, state)
+        else:
+            await query.answer("Error")
+            callback_data = nav.BlankCallback(text="Error")
+            await my_livings_by_query(query, callback_data, state)
+
+
+@living_router.callback_query(nav.LivingsCallback.filter(F.action == "edit"))
+async def handle_item_edit_by_query(query: CallbackQuery, callback_data: nav.LivingsCallback, state: FSMContext):
+    await query.answer("Edit")
+    living_id = int(callback_data.id)
+    photos_string = callback_data.additional
+    # additional = callback_data.additional
+    updated_keyboard = await nav.create_blank_keyboard("✏️ Edit")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    keyboard = await nav.create_edit_living_keyboard(living_id, photos_string)
+    await query.message.answer("What do you want to edit?", reply_markup=keyboard)
+@living_router.callback_query(nav.LivingsCallback.filter())
+async def handle_item_field_edit_by_query(query: CallbackQuery, callback_data: nav.LivingsCallback, state: FSMContext):
+    item_id = int(callback_data.id)
+    await state.set_state(LivingEdit.living_id)
+    await state.update_data(item_id=item_id)
+    photo_id = int(callback_data.additional)
+    await state.set_state(LivingEdit.photo_id)
+    await state.update_data(photo_id=photo_id)
+    await query.answer(f"{callback_data.action.capitalize()}")
+    match callback_data.action:
+        case "description":
+            updated_keyboard = await nav.create_blank_keyboard("description")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+            await state.set_state(Living.description)
+            await query.message.answer("Provide new description")
+        case "price":
+            updated_keyboard = await nav.create_blank_keyboard("price")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+            await state.set_state(Living.price)
+            await query.message.answer("Provide new price")
+        case "city":
+            updated_keyboard = await nav.create_blank_keyboard("city")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+            await state.set_state(Living.location)
+            await query.message.answer("Provide new location")
+        case "address":
+            updated_keyboard = await nav.create_blank_keyboard("location")
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+            await state.set_state(Living.address)
+            await query.message.answer("Provide new location")
+        case "photo_1" | "photo_2" | "photo_3" | "photo_4" | "photo_5" | "photo_6":
+            photo_splitted = callback_data.action.split("_")
+            text = (" ").join(photo_splitted)
+            updated_keyboard = await nav.create_blank_keyboard(text)
+            await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+            await state.set_state(LivingEdit.new_photo)
+            await query.message.answer("Provide new photo")
+
+
+@living_router.message(LivingEdit.description, F.text)
+@living_router.message(LivingEdit.price, F.text)
+@living_router.message(LivingEdit.location, F.location)
+@living_router.message(LivingEdit.location, F.text)
+@living_router.message(LivingEdit.new_photo, F.photo)
+async def handle_item_field_update_callback(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    data = await state.get_data()
+    item_id = data["item_id"]
+    photo_id = data["photo_id"]
+    callback_data = nav.LivingsCallback(id=str(item_id), action="list", additional="")
+    match current_state:
+        # case LivingEdit.title.state:
+        #     print("ITEM ID", item_id)
+        #     print("Current State", current_state)
+        #     # DB query to edit field
+        #     async with SessionLocal() as session:
+        #         updated = await rq.update_item_by_id(session, item_id, Item.title, message.text) 
+        #         if updated:
+        #             await message.answer("Title successfully updated")
+        #             await handle_single_item_list_by_message(message, callback_data, state)
+        #         else: 
+        #             await message.answer("Error")
+        case LivingEdit.description.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_living_by_id(session, item_id, LivingModel.description, message.text) 
+                if updated:
+                    await message.answer("Description successfully updated")
+                    await handle_single_item_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case LivingEdit.price.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_living_by_id(session, item_id, LivingModel.price, message.text) 
+                if updated:
+                    await message.answer("Price successfully updated")
+                    await handle_single_item_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case LivingEdit.location.state:
+            if message.location:
+                user_location = location.get_location(message.location.latitude, message.location.longitude)
+                print(user_location)
+                address = user_location[1]
+                async with SessionLocal() as session:
+                    updated = await rq.update_living_by_id(session, item_id, LivingModel.city, address)
+                    if updated:
+                        await message.answer("Location successfully updated")
+                        await handle_single_item_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
+            else:
+                async with SessionLocal() as session:
+                    updated = await rq.update_living_by_id(session, item_id, LivingModel.city, message.text) 
+                    if updated:
+                        await message.answer("City successfully updated")
+                        await handle_single_item_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
+        case LivingEdit.address.state:
+            async with SessionLocal() as session:
+                updated = await rq.update_living_by_id(session, item_id, LivingModel.price, message.text) 
+                if updated:
+                    await message.answer("Price successfully updated")
+                    await handle_single_item_list_by_message(message, callback_data, state)
+                else: 
+                    await message.answer("Error")
+        case LivingEdit.new_photo.state:
+            if message.photo:
+                file_id = message.photo[-1].file_id
+                async with SessionLocal() as session:
+                    print("PHOTO", photo_id, "FILE_ID", file_id)
+                    updated = await rq.update_living_photo_by_id(session, photo_id, file_id)
+                    if updated:
+                        await message.answer("Photo successfully updated")
+                        await handle_single_item_list_by_message(message, callback_data, state)
+                    else: 
+                        await message.answer("Error")
+            else:
+                await message.answer("Provide a photo")                   
 
 
 
 # --- HELPER FUNCTIONS ---
 async def living_summary(living: Living, photos): # use ParseMode.HTML (parse_mode=ParseMode.HTML)
     summary = markdown.text(
-                markdown.text(f'{living.description}\n'),
-                markdown.hbold('Expected price: '),
+                markdown.text(f'{living.description}'),
+                markdown.hbold('\nExpected price:'),
                 markdown.hitalic(f'{living.price}'),
-                markdown.hbold(f'\nLandlord ->'),
+                markdown.hbold(f'\nLandlord ⇾'),
                 markdown.hlink(f'@{living.username}', f'https://t.me/{living.username}'),
                 markdown.hblockquote(f'📍 {living.city}, {living.address}')
             )

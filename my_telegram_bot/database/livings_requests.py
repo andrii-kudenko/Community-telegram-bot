@@ -1,5 +1,5 @@
 from sqlalchemy.future import select
-from sqlalchemy import BigInteger, update
+from sqlalchemy import BigInteger, update, delete
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Living, LivingPhoto
@@ -76,7 +76,7 @@ async def update_my_livings_city_search(db: AsyncSession, my_id, new_livings_cit
 async def get_next_living_with_city(db: AsyncSession, exclude_living_ids: list, city: str):
     if exclude_living_ids is None:
         exclude_living_ids = []
-    stmt = ( # Query items excluding those in the exclude_item_ids list and filtering by city
+    stmt = ( # Query items excluding those in the exclude_living_ids list and filtering by city
         select(Living).filter(Living.id.notin_(exclude_living_ids), Living.city == city).order_by(Living.id)
     )
     result = await db.execute(stmt)
@@ -89,7 +89,7 @@ async def get_next_living_with_city(db: AsyncSession, exclude_living_ids: list, 
 async def get_next_living_without_city(db: AsyncSession, exclude_living_ids: list, city: str):
     if exclude_living_ids is None:
         exclude_living_ids = []
-    stmt = ( # Query items excluding those in the exclude_item_ids list and filtering by city
+    stmt = ( # Query items excluding those in the exclude_living_ids list and filtering by city
         select(Living)
         .filter(Living.id.notin_(exclude_living_ids), Living.city != city)
         .order_by(Living.id)
@@ -102,3 +102,37 @@ async def get_next_living_without_city(db: AsyncSession, exclude_living_ids: lis
         return living, living.photos
     return None, None
 # END
+
+async def delete_related_living_photos(db: AsyncSession, living_id: int):
+    stmt = delete(LivingPhoto).where(LivingPhoto.living_id == living_id)
+    await db.execute(stmt)
+    await db.commit()
+async def delete_living_by_id(db: AsyncSession, living_id: int):
+    await delete_related_living_photos(db, living_id)
+    stmt = delete(Living).where(Living.id == living_id)
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def update_living_by_id(db: AsyncSession, living_id: int, field, field_value: str):
+    stmt = update(Living).where(Living.id == living_id).values({field: field_value})
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def update_living_photo_by_id(db: AsyncSession, photo_id: int, photo_value: str):
+    stmt = update(LivingPhoto).where(LivingPhoto.id == photo_id).values(photo_id = photo_value)
+    result = await db.execute(stmt)
+    await db.commit()
+    return result
+async def get_user_livings(db: AsyncSession, user_id):
+    stmt = select(Living).filter(Living.user_id == user_id)
+    result = await db.execute(stmt)
+    items = result.scalars().all()
+    return items
+async def get_living_by_id(db: AsyncSession, living_id: int) -> list[Living, list]:
+    stmt = select(Living).filter(Living.id == living_id).order_by(Living.id)
+    result = await db.execute(stmt)
+    item = result.scalars().one()
+    if item:
+        await db.refresh(item, attribute_names=["photos"])
+        return item, item.photos
+    return None, None

@@ -46,7 +46,8 @@ jobsReplyChoiceMenu = InlineKeyboardBuilder()
 jobsReplyChoiceMenu.button(text="Search 🔎", callback_data=JobsCallback(id="0", action="search", additional="").pack())
 jobsReplyChoiceMenu.button(text="Post an ad 📰", callback_data=JobsCallback(id="0", action="post_ad", additional="").pack())
 jobsReplyChoiceMenu.button(text="View my job ads 🧾", callback_data=MenuCallback(menu="my_job_ads").pack())
-jobsReplyChoiceMenu.adjust(2)
+jobsReplyChoiceMenu.button(text="Go home 🏠", callback_data=MenuCallback(menu="home").pack())
+jobsReplyChoiceMenu.adjust(2, 1)
 
 
 applyMenu = InlineKeyboardBuilder()

@@ -23,7 +23,8 @@ friendsReplyChoiceMenu = InlineKeyboardBuilder()
 friendsReplyChoiceMenu.button(text="Search 🔎", callback_data=FriendsCallback(action="search").pack())
 friendsReplyChoiceMenu.button(text="My Bio 👤", callback_data=MenuCallback(menu="my_bio").pack())
 friendsReplyChoiceMenu.button(text="Something", callback_data=FriendsCallback(action="something").pack())
-friendsReplyChoiceMenu.adjust(2)
+friendsReplyChoiceMenu.button(text="Go home 🏠", callback_data=MenuCallback(menu="home").pack())
+friendsReplyChoiceMenu.adjust(2, 1)
 
 
 

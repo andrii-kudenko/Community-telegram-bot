@@ -181,7 +181,6 @@ class Living(Base):
     user: Mapped["User"] = relationship(back_populates="livings")
     photos: Mapped[List["LivingPhoto"]] = relationship(back_populates="living", cascade="all, delete-orphan")
     
-
 class LivingPhoto(Base):
     __tablename__ = 'livings_photos'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

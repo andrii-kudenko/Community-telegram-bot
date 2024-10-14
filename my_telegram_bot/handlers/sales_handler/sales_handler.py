@@ -16,7 +16,7 @@ from utils import location
 from bot_info import set_back_commands, set_default_commands
 from database import sales_requests as rq
 from database.models import SessionLocal
-from database.models import SaleItem as Item
+from database.models import SaleItem as SaleItemModel
 
 sales_router = Router(name=__name__)
 
@@ -66,6 +66,7 @@ async def start_sales(message: Message, state: FSMContext):
 @sales_router.callback_query(nav.MenuCallback.filter(F.menu == "start_sales"))
 @sales_router.callback_query(nav.SalesCallback.filter(F.action == "start_sales"))
 async def start_sales_by_query(query: CallbackQuery, callback_data: nav.MenuCallback, state: FSMContext): # HAS Middleware
+    # ...
     if "action" in callback_data.model_dump():
         await query.answer("Sales")
         updated_keyboard = await nav.create_blank_keyboard(f"{callback_data.additional}")
@@ -80,6 +81,9 @@ async def start_sales_by_query(query: CallbackQuery, callback_data: nav.MenuCall
 @sales_router.message(SaleItem.description, Command("cancel", prefix=("!/")))
 @sales_router.message(SaleItem.price, Command("cancel", prefix=("!/")))
 @sales_router.message(SaleItem.location, Command("cancel", prefix=("!/")))
+@sales_router.message(SaleItem.photo1, Command("cancel", prefix=("!/")))
+@sales_router.message(SaleItem.photo2, Command("cancel", prefix=("!/")))
+@sales_router.message(SaleItem.photo3, Command("cancel", prefix=("!/")))
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     if current_state is None:
@@ -159,13 +163,13 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
             await query.message.answer("You can come later to see new available sales options", reply_markup=nav.salesChoiceMenu.as_markup())  
 @sales_router.callback_query(nav.SalesCallback.filter(F.action == "search_beyond"))
 async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
-    await query.answer("Searching beyond")
     user_id = query.from_user.id
+    await query.answer("Searching beyond")
     updated_keyboard = await nav.create_blank_keyboard("Search beyond city 🔎")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         await rq.update_my_sales_city_search(session, user_id, False)
-    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Sales.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
@@ -404,11 +408,11 @@ async def handle_item_delete_by_query(query: CallbackQuery, callback_data: nav.S
             # await query.message.answer("Job post successfully deleted")
             # await query.message.edit_reply_markup(ReplyKeyboardRemove())
             callback_data = nav.BlankCallback(text="Deleted")
-            await my_items_by_query(query.message, callback_data, state)
+            await my_items_by_query(query, callback_data, state)
         else:
             await query.answer("Error")
             callback_data = nav.BlankCallback(text="Error")
-            await my_items_by_query(query.message, callback_data, state)
+            await my_items_by_query(query, callback_data, state)
 
 
 @sales_router.callback_query(nav.SalesCallback.filter(F.action == "edit"))
@@ -487,7 +491,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
             print("Current State", current_state)
             # DB query to edit field
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, Item.title, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, SaleItemModel.title, message.text) 
                 if updated:
                     await message.answer("Title successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
@@ -495,7 +499,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                     await message.answer("Error")
         case SaleItemEdit.description.state:
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, Item.description, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, SaleItemModel.description, message.text) 
                 if updated:
                     await message.answer("Description successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
@@ -503,7 +507,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                     await message.answer("Error")
         case SaleItemEdit.price.state:
             async with SessionLocal() as session:
-                updated = await rq.update_item_by_id(session, item_id, Item.price, message.text) 
+                updated = await rq.update_item_by_id(session, item_id, SaleItemModel.price, message.text) 
                 if updated:
                     await message.answer("Price successfully updated")
                     await handle_single_item_list_by_message(message, callback_data, state)
@@ -515,7 +519,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                 print(user_location)
                 address = user_location[1]
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_by_id(session, item_id, Item.city, address)
+                    updated = await rq.update_item_by_id(session, item_id, SaleItemModel.city, address)
                     if updated:
                         await message.answer("Location successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
@@ -523,7 +527,7 @@ async def handle_item_field_update_callback(message: Message, state: FSMContext)
                         await message.answer("Error")
             else:
                 async with SessionLocal() as session:
-                    updated = await rq.update_item_by_id(session, item_id, Item.city, message.text) 
+                    updated = await rq.update_item_by_id(session, item_id, SaleItemModel.city, message.text) 
                     if updated:
                         await message.answer("City successfully updated")
                         await handle_single_item_list_by_message(message, callback_data, state)
