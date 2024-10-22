@@ -21,6 +21,7 @@ from bot_info import set_back_commands, set_default_commands
 from database import jobs_requests as rq
 from database.models import SessionLocal
 from database.models import Job as JobModel
+from database.models import Resume as ResumeModel
 
 # from handlers.friendships_handler.friendships_markup import MenuCallback as friendsMenuCallback
 # from friendships_handler.friendships_markup import MenuCallback
@@ -144,11 +145,18 @@ async def back_handler(message: Message, state: FSMContext) -> None:
 async def search_by_query(query: CallbackQuery, state: FSMContext): 
     user_id = query.from_user.id
     await query.answer("Searching")
-    # database check for resume
-    async with SessionLocal() as session:
-        await rq.update_my_jobs_city_search(session, user_id, True)
     updated_keyboard = await nav.create_blank_keyboard("Search 🔎")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    # database check for resume
+    async with SessionLocal() as session:
+        valid_resume = await rq.check_for_resume(session, user_id)
+        if valid_resume:
+            await rq.update_my_jobs_city_search(session, user_id, True)
+        else:
+            answer = await query.message.answer("Your resume is incomplete")
+            await start_jobs(answer, state)
+            return
+            
     # await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Jobs.searching)
     async with SessionLocal() as session:
@@ -333,7 +341,7 @@ async def handle_job_check_applicants_by_query(query: CallbackQuery, callback_da
     # user_id = query.from_user.id
     job_id = int(callback_data.id)
     additional = callback_data.additional
-    updated_keyboard = await nav.create_blank_keyboard("🖱️ Check applicants")
+    updated_keyboard = await nav.create_blank_keyboard(f"{additional}")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         job_applicants = await rq.get_applicants_by_job_id(session, job_id)
@@ -346,6 +354,27 @@ async def handle_job_check_applicants_by_query(query: CallbackQuery, callback_da
             callback_data = nav.JobsCallback(id=str(job_id), action="list", additional="🖱️ Check applicants")
             answer = await query.message.answer("There are no applicants yet")
             await handle_job_list_by_message(answer, callback_data, state, True)       
+@job_router.callback_query(nav.ApplicantsCallback.filter(F.action == "review_applicant"))
+async def handle_job_review_applicant_by_query(query: CallbackQuery, callback_data: nav.ApplicantsCallback, state: FSMContext):
+    user_id = query.from_user.id
+    resume_id = int(callback_data.id)
+    job_id = int(callback_data.job_id)
+    # additional = callback_data.additional
+    updated_keyboard = await nav.create_blank_keyboard("Review applicant")
+    await query.message.edit_reply_markup(reply_markup=updated_keyboard)
+    async with SessionLocal() as session:
+        applicant_resume = await rq.get_user_resume(session, user_id)
+        if applicant_resume:
+            await query.answer("Applicant")
+            keyboard = await nav.create_single_applicant_keyboard(resume_id, job_id)
+            summary = await resume_summary(applicant_resume)
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            # summary = await post_summary(my_job)
+            # await query.message.answer(text="Applicants", parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+        else:
+            callback_data = nav.JobsCallback(id=str(job_id), action="list", additional="🖱️ Check applicants")
+            answer = await query.message.answer("Error")
+            await handle_job_check_applicants_by_query(query, callback_data, state)       
 
 
 @job_router.callback_query(nav.JobsCallback.filter(F.action == "edit"))
@@ -509,13 +538,14 @@ async def job_location(message: Message, state: FSMContext):
     await set_default_commands(id=message.from_user.id)
 @job_router.message(Job.location, F.text)
 async def job_city(message: Message, state: FSMContext):
-    city = message.text.strip().capitalize()
+    city = message.text.strip().title()
     await state.update_data(location=city)
     await state.set_state(Job.address)
     await message.answer("Add an address (street) for your post", reply_markup=nav.skipMenu)
 @job_router.message(Job.address, F.text)
 async def job_address(message: Message, state: FSMContext):
     data = await state.update_data(address=None) if message.text == "Skip" else await state.update_data(address=message.text)
+    print(data["location"])
     new_job = NewJob(False, message.from_user.id, data["title"], data["description"], data["skills"], data["location"], data["address"])
     await state.clear()
     await show_summary(message=message, data=data)
@@ -597,6 +627,34 @@ async def post_summary(job: Job): # use ParseMode.HTML (parse_mode=ParseMode.HTM
         f"{skills_formatted}\n\n"
         f"<i>📍 {(job.city).capitalize()} {address_check}</i>"
     )
+    return summary
+
+async def resume_summary(resume: ResumeModel): # use ParseMode.HTML (parse_mode=ParseMode.HTML), need to work on styling 
+    if resume.skills:
+        resume_skills: str = resume.skills
+        skills_list: list = resume_skills.split(',')
+        skills_formatted = "\n".join([f"- {skill.strip().capitalize()}" for skill in skills_list])
+    summary = ""
+    attributes = [ 'full_name',
+        'email_address', 'additional_information',
+        'phone_number', 'location', 'work_experience', 
+        'degree_description', 'skills', 'languages'
+    ]
+    attr_dict = {
+    'full_name': "Name",
+    'additional_information': "About",
+    'email_address': "Email", 
+    'phone_number': "Phone", 
+    'location': "Location", 
+    'work_experience': "Experience", 
+    'degree_description': "Degrees",
+    'skills': "Skills", 
+    'languages': "Languages", 
+}
+    for attr in attributes:
+        value = getattr(resume, attr, None)
+        if value:
+            summary += f"<b>{attr_dict[attr]}:</b> {value}\n"
     return summary
 
 

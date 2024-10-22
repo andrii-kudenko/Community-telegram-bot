@@ -34,7 +34,6 @@ class User(Base):
     # Relationships
     bio: Mapped["Bio"] = relationship(back_populates="user", uselist=False)
     jobs: Mapped[List["Job"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Job.user_id')
-    user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_user", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_user_id')
     sale_items: Mapped[List["SaleItem"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='SaleItem.user_id')
     livings: Mapped[List["Living"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys='Living.user_id')
     resume: Mapped["Resume"] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -69,7 +68,7 @@ class User(Base):
 class Resume(Base):
     __tablename__ = 'resumes'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    user_id: Mapped[BigInteger] = mapped_column(BigInteger, ForeignKey("users.user_id"), nullable=False)
 
     full_name: Mapped[str] = mapped_column(String(100), nullable=True)
     additional_information: Mapped[str] = mapped_column(String(1000), nullable=True)
@@ -82,6 +81,12 @@ class Resume(Base):
     languages: Mapped[str] = mapped_column(String(500), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="resume")
+    user_applications: Mapped[List["JobApplication"]] = relationship(back_populates="applicant_resume", cascade="all, delete-orphan", foreign_keys='JobApplication.applicant_resume_id')
+
+    def check_for_valid_resume(self):
+        print(self.full_name, self.additional_information, self.email_address)
+        if not self.full_name or not self.email_address or not self.additional_information: return False
+        else: return True
 
 class Bio(Base):
     __tablename__ = 'bios'
@@ -129,7 +134,7 @@ class Job(Base):
     latitude: Mapped[str] = mapped_column(String(15))
     longtitude: Mapped[str] = mapped_column(String(15))
     city: Mapped[str] = mapped_column(String(40))
-    address: Mapped[str] = mapped_column(String(40))
+    address: Mapped[str] = mapped_column(String(40), nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="jobs", foreign_keys=[user_id])  
@@ -142,11 +147,11 @@ class JobApplication(Base):
     __tablename__ = 'jobs_applications'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey('jobs.id'), nullable=False)
-    applicant_user_id: Mapped[BigInteger] = mapped_column(ForeignKey('users.user_id'), nullable=False)
+    applicant_resume_id: Mapped[int] = mapped_column (ForeignKey('resumes.id'), nullable=False)
     
     # Relationships
     job: Mapped["Job"] = relationship(back_populates="job_applications", foreign_keys=[job_id])
-    applicant_user: Mapped["User"] = relationship(back_populates="user_applications", foreign_keys=[applicant_user_id])
+    applicant_resume: Mapped["Resume"] = relationship(back_populates="user_applications", foreign_keys=[applicant_resume_id])
 
 
 class SaleItem(Base):

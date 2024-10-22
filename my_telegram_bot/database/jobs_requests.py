@@ -2,7 +2,7 @@ from sqlalchemy.future import select
 from sqlalchemy import BigInteger, update, func, delete
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from .models import User, Job, JobApplication
+from .models import User, Job, JobApplication, Resume
 import random
 
 
@@ -54,12 +54,12 @@ async def get_job_by_id(db: AsyncSession, job_id: int):
     else:
         return None
 async def get_applicants_by_job_id(db: AsyncSession, job_id):
-    stmt = select(JobApplication).filter(JobApplication.job_id == job_id).options(joinedload(JobApplication.applicant_user)).order_by(JobApplication.id)
+    stmt = select(JobApplication).filter(JobApplication.job_id == job_id).options(joinedload(JobApplication.applicant_resume)).order_by(JobApplication.id)
     result = await db.execute(stmt)
     job_applications = result.scalars().all()
     applicants = []
     for application in job_applications:
-        applicants.append(application.applicant_user)
+        applicants.append(application.applicant_resume)
     return applicants
 async def delete_related_job_applications(db: AsyncSession, job_id: int):
     stmt = delete(JobApplication).where(JobApplication.job_id == job_id)
@@ -72,6 +72,7 @@ async def delete_job_by_id(db: AsyncSession, job_id: int):
     await db.commit()
     return result
 async def add_job_post_to_user(db: AsyncSession, job):
+    print(job.city)
     db_job = Job(user_id=job.user_id, title=job.title, description=job.description, skills=job.skills,
                  latitude=str(job.latitude),
                  longtitude=str(job.longtitude),
@@ -122,7 +123,16 @@ async def add_id_to_user_jobs_search_id_list(db: AsyncSession, user_id, job_id):
     await db.commit()
     return res
 async def apply_for_job(db: AsyncSession, job_id, applicant_user_id):
-    job_application = JobApplication(job_id=job_id, applicant_user_id=applicant_user_id)
+    stmt = select(Resume).where(Resume.user_id == applicant_user_id)
+    result = await db.execute(stmt)
+    resume = result.scalars().first()
+    job_application = JobApplication(job_id=job_id, applicant_resume_id=resume.id)
+    db.add(job_application)
+    await db.commit()
+    await db.refresh(job_application)
+    return job_application
+async def apply_for_job_by_resume_id(db: AsyncSession, job_id, applicant_resume_id):
+    job_application = JobApplication(job_id=job_id, applicant_user_id=applicant_resume_id)
     db.add(job_application)
     await db.commit()
     await db.refresh(job_application)
@@ -142,6 +152,22 @@ async def update_my_jobs_city_search(db: AsyncSession, my_id, new_jobs_city_sear
     res = await db.execute(stmt)
     await db.commit()
     return res
+async def check_for_resume(db: AsyncSession, user_id: BigInteger):
+    stmt = select(Resume).where(Resume.user_id == user_id)
+    result = await db.execute(stmt)
+    resume = result.scalars().first()
+    print(resume.full_name, resume.additional_information, resume.email_address)
+    # return resume.check_for_valid_resume()
+    if resume and resume.check_for_valid_resume(): return True
+    else: return False
+    # return True
+
+async def get_user_resume(db: AsyncSession, user_id: BigInteger):
+    stmt = select(Resume).where(Resume.user_id == user_id)
+    result = await db.execute(stmt)
+    resume = result.scalars().first()
+    return resume
+
 # END
 
 

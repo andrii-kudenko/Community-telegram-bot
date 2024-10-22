@@ -98,19 +98,20 @@ async def create_edit_job_keyboard(id):
 
 async def create_job_applicants_keyboard(job_applicants, job_id):
     applicantsMenu = InlineKeyboardBuilder()
-    for applicant in job_applicants:
-        applicantsMenu.button(text=applicant.name, callback_data=ApplicantsCallback(id=str(applicant.user_id), job_id=str(job_id), action="manage").pack())
+    for resume in job_applicants:
+        applicantsMenu.button(text=resume.full_name, callback_data=ApplicantsCallback(id=str(resume.id), job_id=str(job_id), action="review_applicant").pack())
     applicantsMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="manage", additional="Back").pack())
-    applicantsMenu.button(text="Home 🏠", callback_data=MenuCallback(menu="home").pack())
+    # applicantsMenu.button(text="Home 🏠", callback_data=MenuCallback(menu="home").pack())
     applicantsMenu.adjust(1)
     return applicantsMenu.as_markup()
 
 async def create_single_applicant_keyboard(applicant_id, job_id):
     applicantMenu = InlineKeyboardBuilder()
-    applicantMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="check_applicants", additional="").pack())
-    applicantMenu.button(text="Next", callback_data=ApplicantsCallback(id=str(applicant_id), job_id=str(job_id), action="next").pack())
+    applicantMenu.button(text="Back", callback_data=JobsCallback(id=str(job_id), action="check_applicants", additional="🖱️ Check applicants").pack())
+    # applicantMenu.button(text="Next", callback_data=ApplicantsCallback(id=str(applicant_id), job_id=str(job_id), action="next").pack())
     applicantMenu.adjust(2)
     return applicantMenu.as_markup()
+
 
 async def create_blank_keyboard(text):
     blankMenu = InlineKeyboardBuilder()

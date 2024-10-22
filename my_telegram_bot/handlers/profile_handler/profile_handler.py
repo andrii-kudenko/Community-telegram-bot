@@ -95,7 +95,7 @@ async def my_resume_editor_by_messsage(message: Message, state: FSMContext):
 async def create_resume(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     await query.answer("Resume Creation")
-    updated_keyboard = await nav.create_blank_keyboard("Created")
+    updated_keyboard = await nav.create_blank_keyboard("Create")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         created_resume = await rq.create_resume(session, user_id)

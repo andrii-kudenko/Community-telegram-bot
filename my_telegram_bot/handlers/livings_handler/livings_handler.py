@@ -179,7 +179,7 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
         await rq.update_my_livings_city_search(session, user_id, False)
-    await query.message.answer("Searching...", reply_markup=nav.nextMenu)
+    # await query.message.answer("Searching...", reply_markup=nav.nextMenu)
     await state.set_state(Livings.searching)
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
