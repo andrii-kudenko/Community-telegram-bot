@@ -4,6 +4,9 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Job, JobApplication, Resume
 import random
+from langdetect import detect
+from rapidfuzz import process
+from transliterate import translit
 
 
 # --- USER ---
@@ -23,7 +26,8 @@ async def get_next_job_by_id(db: AsyncSession, exclude_job_ids: list):
         return job
     else:
         return None
-async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
+    
+async def get_next_job_by_id_with_city_old(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
     stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city == city).order_by(Job.id)
     result = await db.execute(stmt)
     jobs = result.scalars().all()
@@ -32,6 +36,42 @@ async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, 
         return job
     else:
         return None
+async def get_next_job_by_id_with_city(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
+    stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city == city).order_by(Job.id)
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    if jobs:
+        job = random.choice(jobs)
+        return job
+    else:
+        # Detect the language of the input city name
+        detected_language = detect(city)
+        # Get all cities from the Job table for fuzzy matching
+        all_jobs_stmt = select(Job.city).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id)
+        all_cities_result = await db.execute(all_jobs_stmt)
+        all_cities = all_cities_result.scalars().all()
+        matched_city = None
+        if all_cities: 
+            # Conditional logic for matching based on detected language
+            if detected_language == 'ru':  # Russian
+                # Use fuzzy matching directly with the original city
+                matched_city, _, _ = process.extractOne(city, all_cities)
+            else:  # Assuming input is in English or other Latin-based languages
+                matched_city, _, _ = process.extractOne(city, all_cities)
+
+                # Now filter jobs based on the matched city
+            stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city == matched_city).order_by(Job.id)
+            result = await db.execute(stmt)
+            jobs = result.scalars().all()
+            
+            if jobs:
+                job = random.choice(jobs)
+                return job
+            else:
+                return None
+        else:
+            return None
+    
 async def get_next_job_by_id_without_city(db: AsyncSession, exclude_job_ids: list, city: str, user_id: BigInteger):
     stmt = select(Job).filter(Job.id.notin_(exclude_job_ids)).filter(Job.user_id != user_id).filter(Job.city != city).order_by(Job.id)
     result = await db.execute(stmt)
@@ -162,8 +202,8 @@ async def check_for_resume(db: AsyncSession, user_id: BigInteger):
     else: return False
     # return True
 
-async def get_user_resume(db: AsyncSession, user_id: BigInteger):
-    stmt = select(Resume).where(Resume.user_id == user_id)
+async def get_user_resume(db: AsyncSession, resume_id: int):
+    stmt = select(Resume).where(Resume.id == resume_id)
     result = await db.execute(stmt)
     resume = result.scalars().first()
     return resume

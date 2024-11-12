@@ -3,6 +3,9 @@ from sqlalchemy import BigInteger, update
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Bio, BioPhoto, Like
+from rapidfuzz import process
+from langdetect import detect
+
 
 # --- HANDLE PHOTOS ---
 async def add_photos_to_bio(db: AsyncSession, bio_id: int, photos: list):
@@ -35,7 +38,7 @@ async def add_bio_to_user_by_id(db: AsyncSession, bio, photos):
             profile_name=bio.profile_name,
             profile_bio=bio.profile_bio,
             profile_age=int(bio.profile_age),
-            profile_city=(bio.profile_city.strip().lower()),
+            profile_city=(bio.profile_city),
             latitude=str(bio.latitude) if bio.coordinates else '0',
             longtitude=str(bio.longtitude) if bio.coordinates else '0',
             search_id = 0,
@@ -56,7 +59,7 @@ async def add_bio_to_user_by_id(db: AsyncSession, bio, photos):
             existing_bio.latitude = str(bio.latitude)
             existing_bio.longtitude = str(bio.longtitude)
         else:
-            existing_bio.profile_city = bio.profile_city.strip().lower()
+            existing_bio.profile_city = bio.profile_city
         existing_bio.search_id = 0
         existing_bio.beyond_city_search_id = 0
         await db.commit()
@@ -109,7 +112,7 @@ async def get_my_bio_id_search_id_city(db: AsyncSession, telegram_user_id: BigIn
 
 
 # --- HANDLE SEARCH ---
-async def get_next_bio_by_id_with_city(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str): # Add a calculator to calculate distances
+async def get_next_bio_by_id_with_city_old(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str): # Add a calculator to calculate distances
     cities = [city.strip().lower()]
     stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).filter(Bio.profile_city.in_(cities)).order_by(Bio.id).limit(1)
     result = await db.execute(stmt)
@@ -117,6 +120,45 @@ async def get_next_bio_by_id_with_city(db: AsyncSession, bio_id: int, exclude_bi
     photos = []
     if bio:
         photos = bio.photos
+    return bio, photos
+async def get_next_bio_by_id_with_city(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str):
+    stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).filter(Bio.profile_city == city).order_by(Bio.id).limit(1)
+    result = await db.execute(stmt)
+    bio = result.scalars().first()
+    photos = []
+    if bio:
+        photos = bio.photos
+        return bio, photos
+    else:
+        # Detect the language of the input city name
+        detected_language = detect(city)
+
+        # Get all bios from the Bio table for fuzzy matching
+        all_bios_stmt = select(Bio.profile_city).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id)
+        all_bios_result = await db.execute(all_bios_stmt)
+        all_cities = all_bios_result.scalars().all()
+
+        matched_city = None
+
+        if all_cities:
+            # Conditional logic for matching based on detected language
+            if detected_language == 'ru':  # Russian
+                matched_city, _, _ = process.extractOne(city, all_cities)
+            else:  # Assuming input is in English or other Latin-based languages
+                matched_city, _, _ = process.extractOne(city, all_cities)
+
+            stmt = select(Bio).options(joinedload(Bio.photos)).filter(Bio.id > bio_id).filter(Bio.id != exclude_bio_id).filter(Bio.profile_city == matched_city).order_by(Bio.id).limit(1)
+            result = await db.execute(stmt)
+            bio = result.scalars().first()
+            photos = []
+            if bio:
+                photos = bio.photos
+                return bio, photos
+        else:
+            return None, []
+
+    
+
     return bio, photos
 async def get_next_bio_by_id_without_city(db: AsyncSession, bio_id: int, exclude_bio_id: int, city: str): # Add a calculator to calculate distances
     cities = [city.strip().lower()]

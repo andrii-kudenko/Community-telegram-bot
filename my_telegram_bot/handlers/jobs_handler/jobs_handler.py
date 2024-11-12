@@ -165,7 +165,9 @@ async def search_by_query(query: CallbackQuery, state: FSMContext):
         if job:
             await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await post_summary(job)
-            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            keyboard = await nav.create_apply_keyboard(job.id)
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+            # await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
         elif job is None:
             await query.message.answer("Searching...")
@@ -192,7 +194,9 @@ async def search_beyond_by_query(query: CallbackQuery, state: FSMContext):
         if job:
             await query.message.answer("Searching...", reply_markup=nav.nextMenu)
             summary = await post_summary(job)
-            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            keyboard = await nav.create_apply_keyboard(job.id)
+            await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
+            # await query.message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
         elif job is None:
             await query.message.answer("Searching...")
@@ -358,12 +362,13 @@ async def handle_job_check_applicants_by_query(query: CallbackQuery, callback_da
 async def handle_job_review_applicant_by_query(query: CallbackQuery, callback_data: nav.ApplicantsCallback, state: FSMContext):
     user_id = query.from_user.id
     resume_id = int(callback_data.id)
+    print(resume_id)
     job_id = int(callback_data.job_id)
     # additional = callback_data.additional
     updated_keyboard = await nav.create_blank_keyboard("Review applicant")
     await query.message.edit_reply_markup(reply_markup=updated_keyboard)
     async with SessionLocal() as session:
-        applicant_resume = await rq.get_user_resume(session, user_id)
+        applicant_resume = await rq.get_user_resume(session, resume_id)
         if applicant_resume:
             await query.answer("Applicant")
             keyboard = await nav.create_single_applicant_keyboard(resume_id, job_id)
@@ -584,7 +589,8 @@ async def next_job(message: Message, state: FSMContext):
         job = await search_funcitons_map[user.jobs_city_search](session, user.jobs_search_id_list, user.city, user_id)
         if job:
             summary = await post_summary(job)
-            await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=nav.applyMenu.as_markup()) 
+            keyboard = await nav.create_apply_keyboard(job.id)
+            await message.answer(text=summary, parse_mode=ParseMode.HTML, reply_markup=keyboard) 
             await rq.add_id_to_user_jobs_search_id_list(session, user.user_id, job.id)
         elif job is None:
             if user.jobs_city_search:
@@ -601,11 +607,11 @@ async def next_job(message: Message, state: FSMContext):
 
 # --- JOB APPLICATION ---
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "apply"))
-async def apply_for_job(query: CallbackQuery, state: FSMContext):
+async def apply_for_job(query: CallbackQuery, callback_data: nav.ApplyCallback, state: FSMContext):
     user_id = query.from_user.id
     async with SessionLocal() as session:
         user = await rq.get_user(session, user_id)
-        job_application = await rq.apply_for_job(session, user.jobs_search_id, user.user_id)
+        job_application = await rq.apply_for_job(session, callback_data.job_id, user.user_id)
     await query.answer('Applied')
     await query.message.edit_reply_markup(reply_markup=nav.appliedMenu.as_markup())
 @job_router.callback_query(Jobs.searching, nav.ApplyCallback.filter(F.action == "applied"))

@@ -25,6 +25,7 @@ locationMenu = ReplyKeyboardMarkup(resize_keyboard=True, keyboard=[[btnLocation]
 # --- MENUS ---
 class ApplyCallback(CallbackData, prefix="navigation"):
     action: str
+    job_id: int
 
 class MenuCallback(CallbackData, prefix="navigation"):
     menu: str
@@ -49,11 +50,6 @@ jobsReplyChoiceMenu.button(text="View my job ads 🧾", callback_data=MenuCallba
 jobsReplyChoiceMenu.button(text="Go home 🏠", callback_data=MenuCallback(menu="home").pack())
 jobsReplyChoiceMenu.adjust(2, 1)
 
-
-applyMenu = InlineKeyboardBuilder()
-applyMenu.button(text='Apply 📨', callback_data=ApplyCallback(action="apply").pack())
-appliedMenu = InlineKeyboardBuilder()
-appliedMenu.button(text='Applied ✅', callback_data=ApplyCallback(action="applied").pack())
 
 jobsChoiceMenu = InlineKeyboardBuilder() 
 jobsChoiceMenu.button(text='Home 🏠', callback_data=MenuCallback(menu="home").pack())
@@ -111,6 +107,14 @@ async def create_single_applicant_keyboard(applicant_id, job_id):
     # applicantMenu.button(text="Next", callback_data=ApplicantsCallback(id=str(applicant_id), job_id=str(job_id), action="next").pack())
     applicantMenu.adjust(2)
     return applicantMenu.as_markup()
+
+async def create_apply_keyboard(job_id):
+    applyMenu = InlineKeyboardBuilder()
+    applyMenu.button(text='Apply 📨', callback_data=ApplyCallback(action="apply", job_id=job_id).pack())
+    return applyMenu.as_markup()
+
+appliedMenu = InlineKeyboardBuilder()
+appliedMenu.button(text='Applied ✅', callback_data=ApplyCallback(action="applied", job_id=0).pack())
 
 
 async def create_blank_keyboard(text):

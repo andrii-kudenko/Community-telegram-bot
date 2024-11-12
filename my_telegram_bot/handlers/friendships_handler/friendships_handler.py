@@ -339,7 +339,8 @@ async def profile_location(message: Message, state: FSMContext):
         print(data["location"])
         new_bio = NewBio(True, message.from_user.id, data["name"], data["bio"], data["age"], data["location"], message.location.latitude, message.location.longitude)
     else:
-        data = await state.update_data(location=message.text)
+        city = message.text.strip().title()
+        data = await state.update_data(location=city)
         new_bio = NewBio(False, message.from_user.id, data["name"], data["bio"], data["age"], message.text)
     await state.clear()
     await show_summary(message=message, data=data)
